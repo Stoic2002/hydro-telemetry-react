@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Color Palette - Light Theme Surfaces */
+  --color-surface-base: #f8fafc;
+  --color-surface-raised: #ffffff;
+  --color-surface-overlay: #f1f5f9;
+  
+  /* Border */
+  --color-border-subtle: #e2e8f0;
+
+  /* Text Colors */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+
+  /* Brand Colors */
+  --color-brand-primary: #22d3ee;
+  --color-brand-primary-strong: #0891b2;
+
+  /* Status Colors */
+  --color-status-success: #34d399;
+  --color-status-warning: #fbbf24;
+  --color-status-danger: #f87171;
+  --color-status-info: #60a5fa;
+
+  /* Chart Colors */
+  --color-chart-series-1: #22d3ee;
+  --color-chart-series-2: #a78bfa;
+  --color-chart-series-3: #34d399;
+  --color-chart-series-4: #fbbf24;
+
+  /* Corner Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Legacy Colors for backward compatibility during migration */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-pln-teal: #14a2ba;
+  --color-pln-yellow: #efe62f;
+  --color-status-aman: #22c55e;
+  --color-status-siaga: #f59e0b;
+  --color-status-kritis: #ef4444;
+  --color-status-offline: #94a3b8;
+}
+
+/* Base styles */
+@layer base {
+  body {
+    @apply bg-surface-base text-text-primary font-sans antialiased;
+  }
+}
+
+/* Custom Utilities for Reusable Patterns */
+@layer utilities {
+  .card-light {
+    @apply bg-white border border-slate-200 rounded-xl;
+  }
+  
+  .btn-primary {
+    @apply bg-pln-teal text-white font-medium px-4 py-2 rounded-md hover:bg-[#118a9e] transition-colors focus:ring-2 focus:ring-pln-teal/50 outline-none;
+  }
+
+  .btn-yellow {
+    @apply bg-pln-yellow text-slate-900 font-semibold px-4 py-2 rounded-md hover:bg-[#d6cc27] transition-colors;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-slate-600 font-medium px-4 py-2 rounded-md hover:bg-slate-100 transition-colors;
+  }
+
+  .input-light {
+    @apply w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-slate-800 focus:border-pln-teal focus:ring-1 focus:ring-pln-teal outline-none transition-shadow;
+  }
+
+  .label-light {
+    @apply block text-sm font-medium text-slate-600 mb-1;
+  }
+}
