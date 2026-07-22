@@ -1,11 +1,54 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
+import { formatWIBClock } from '../../shared/lib/date';
+
+interface TimeSeriesDatum {
+  timestamp: string;
+  [key: string]: unknown;
+}
+
+interface TooltipEntry {
+  value?: unknown;
+  color?: string;
+  stroke?: string;
+  name?: ReactNode;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: ReactNode;
+  yLabel: string;
+}
+
+function ChartTooltip({ active, payload, label, yLabel }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="bg-slate-900/95 border border-slate-700 rounded-lg p-2 text-xs shadow-xl backdrop-blur-sm">
+      <div className="text-slate-400 mb-1">{label}</div>
+      {payload.map((entry, index) => {
+        if (typeof entry.value !== 'number') return null;
+
+        return (
+          <div
+            key={index}
+            style={{ color: entry.color || entry.stroke }}
+            className="font-mono font-bold"
+          >
+            {entry.name}: {entry.value.toFixed(2)} {yLabel}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface TimeSeriesChartProps {
-  data: any[];
+  data: TimeSeriesDatum[];
   lines?: { dataKey: string; name: string; color: string; strokeDasharray?: string }[];
   areas?: { dataKey: string; baseLine: string; name: string; color: string; fillOpacity?: number }[];
   referenceLine?: { x?: string | number; y?: number; label?: string; stroke?: string };
@@ -15,7 +58,7 @@ interface TimeSeriesChartProps {
   targetColor?: string;
   type?: 'line' | 'area';
   height?: number;
-  yAxisDomain?: [any, any] | string[];
+  yAxisDomain?: [number | string, number | string];
 }
 
 export default function TimeSeriesChart({
@@ -34,28 +77,10 @@ export default function TimeSeriesChart({
   const chartData = useMemo(() =>
     data.map((d) => ({
       ...d,
-      time: new Date(d.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      time: formatWIBClock(d.timestamp),
     })),
     [data]
   );
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="bg-slate-900/95 border border-slate-700 rounded-lg p-2 text-xs shadow-xl backdrop-blur-sm">
-        <div className="text-slate-400 mb-1">{label}</div>
-        {payload.map((p: any, i: number) => {
-          // If value is an array (e.g. from Area chart confidence interval) or not a number, skip it
-          if (typeof p.value !== 'number') return null;
-          return (
-            <div key={i} style={{ color: p.color || p.stroke }} className="font-mono font-bold">
-              {p.name}: {p.value.toFixed(2)} {yLabel}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   const chartLines = lines || [{ dataKey: 'value', name: yLabel || 'Nilai', color }];
 
@@ -91,9 +116,9 @@ export default function TimeSeriesChart({
           domain={yAxisDomain}
           tickFormatter={(v: number) => v.toFixed(v > 100 ? 0 : 1)}
         />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<ChartTooltip yLabel={yLabel} />} />
         
-        {targetValue && (
+        {targetValue !== undefined && (
           <ReferenceLine y={targetValue} stroke={targetColor} strokeDasharray="5 5" strokeWidth={1.5} label={{ value: 'Target', position: 'right', fill: targetColor, fontSize: 10 }} />
         )}
         
@@ -110,7 +135,7 @@ export default function TimeSeriesChart({
           <Area
             key={area.dataKey}
             type="monotone"
-            dataKey={(d: any) => [d[area.baseLine], d[area.dataKey]]}
+            dataKey={(datum: TimeSeriesDatum) => [datum[area.baseLine], datum[area.dataKey]]}
             name={area.name}
             stroke="none"
             fill={area.color}

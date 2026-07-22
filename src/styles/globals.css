@@ -59,10 +59,52 @@
   --color-status-offline: #94a3b8;
 }
 
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #e8edf3;
+}
+
+.skeleton-shimmer::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 72%),
+    transparent
+  );
+  animation: skeleton-shimmer 1.65s ease-in-out infinite;
+  content: '';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+}
+
 /* Base styles */
 @layer base {
   body {
     @apply bg-surface-base text-text-primary font-sans antialiased;
+  }
+}
+
+@layer components {
+  .page-title {
+    @apply font-display text-[22px] font-bold leading-normal tracking-[-0.55px] text-slate-900;
+  }
+
+  .page-description {
+    @apply font-sans text-[13px] leading-5 text-slate-500;
   }
 }
 

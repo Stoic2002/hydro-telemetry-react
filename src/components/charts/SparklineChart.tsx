@@ -1,7 +1,7 @@
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 interface SparklineChartProps {
-  data: any[];
+  data: Array<Record<string, unknown>>;
   dataKey?: string;
   color?: string;
   height?: number;

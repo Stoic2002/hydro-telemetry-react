@@ -1,7 +1,6 @@
-import React from 'react';
 import Card from '../atoms/Card';
 import TimeSeriesChart from '../charts/TimeSeriesChart';
-import { PJT_HISTORICAL_DATA } from '../../data/pjt-mock-data';
+import { PJT_HISTORICAL_DATA } from '../../mocks/pjt.mock';
 
 interface TrendsContentProps {
   activeTab: 'water' | 'rainfall';

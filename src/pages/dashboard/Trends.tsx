@@ -1,21 +1,44 @@
-import { useState, useMemo } from 'react';
-import { usePLTAStore } from '../../store/plta-store';
-import { pltaData } from '../../data/plta-data';
+import { useSearchParams } from 'react-router-dom';
+import { useActivePLTA } from '../../features/plta/api/queries';
+import { plantMatchesIdentity } from '../../features/plta/presentation';
 import { useNotificationStore } from '../../store/notification-store';
 import { formatNumber } from '../../utils/formatters';
 import { Calendar } from 'lucide-react';
+import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import Select from '../../components/atoms/Select';
 
 interface SvgPathData {
   linePath: string;
   fillPath: string;
 }
 
-export default function Trends() {
-  const { selectedPLTAId } = usePLTAStore();
-  const { addToast } = useNotificationStore();
-  const plta = pltaData.find((p) => p.id === selectedPLTAId) || pltaData[0];
+const TREND_PERIODS = [
+  '30 Hari Terakhir',
+  '7 Hari Terakhir',
+  '24 Jam Terakhir',
+] as const;
 
-  const [period, setPeriod] = useState('30 Hari Terakhir');
+type TrendPeriod = (typeof TREND_PERIODS)[number];
+
+function isTrendPeriod(value: string | null): value is TrendPeriod {
+  return TREND_PERIODS.some((period) => period === value);
+}
+
+export default function Trends() {
+  const { addToast } = useNotificationStore();
+  const { plant, plta } = useActivePLTA();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const periodParam = searchParams.get('period');
+  const period = isTrendPeriod(periodParam) ? periodParam : TREND_PERIODS[0];
+
+  const setPeriod = (nextPeriod: TrendPeriod) => {
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      nextParams.set('period', nextPeriod);
+      return nextParams;
+    });
+  };
 
   // Dynamic status parameters
   const currentInflow = plta.liveData.inflow;
@@ -52,53 +75,35 @@ export default function Trends() {
   };
 
   // 1. Inflow Historical Points & Paths
-  const inflowHistory = useMemo(() => {
-    return plta.historicalData.map((d) => d.inflow);
-  }, [plta.id]);
-
-  const inflowPaths = useMemo(() => {
-    return generateSvgPath(inflowHistory);
-  }, [inflowHistory]);
+  const inflowHistory = plta.historicalData.map((dataPoint) => dataPoint.inflow);
+  const inflowPaths = generateSvgPath(inflowHistory);
 
   // 2. Water Level Historical Points & Paths
-  const levelHistory = useMemo(() => {
-    return plta.historicalData.map((d) => d.waterLevel);
-  }, [plta.id]);
-
-  const levelPaths = useMemo(() => {
-    return generateSvgPath(levelHistory);
-  }, [levelHistory]);
+  const levelHistory = plta.historicalData.map((dataPoint) => dataPoint.waterLevel);
+  const levelPaths = generateSvgPath(levelHistory);
 
   // 3. Outflow Historical Points & Paths
-  const outflowHistory = useMemo(() => {
-    return plta.historicalData.map((d) => d.outflow);
-  }, [plta.id]);
-
-  const outflowPaths = useMemo(() => {
-    return generateSvgPath(outflowHistory);
-  }, [outflowHistory]);
+  const outflowHistory = plta.historicalData.map((dataPoint) => dataPoint.outflow);
+  const outflowPaths = generateSvgPath(outflowHistory);
 
   // 4. ARR / Rainfall 20 bars mapping
-  const rainBars = useMemo(() => {
-    const bars: { x: number; y: number; h: number }[] = [];
-    const base = currentARR;
+  const rainBars: { x: number; y: number; h: number }[] = [];
+  const baseRainfall = currentARR;
     
-    const maxVal = base * 2.5;
+  const maxRainfall = baseRainfall * 2.5;
 
-    for (let i = 0; i < 20; i++) {
-      // Seeded deterministic random heights based on index and plta.id
-      const seed = i + (plta.id === 'pbs-soedirman' ? 5 : 12);
-      const rand = Math.sin(seed) * 0.5 + 0.5;
-      const val = base * rand * 1.5 + 2.0;
+  for (let i = 0; i < 20; i++) {
+    // Seeded deterministic random heights based on index and plta.id
+    const seed = i + (plantMatchesIdentity(plant, 'soedirman') ? 5 : 12);
+    const rand = Math.sin(seed) * 0.5 + 0.5;
+    const value = baseRainfall * rand * 1.5 + 2.0;
 
-      const h = (val / maxVal) * 130 + 15; // scaled height
-      const y = 200 - h;
-      const x = 4 + i * 26;
+    const h = (value / maxRainfall) * 130 + 15;
+    const y = 200 - h;
+    const x = 4 + i * 26;
 
-      bars.push({ x, y, h });
-    }
-    return bars;
-  }, [plta.id, currentARR]);
+    rainBars.push({ x, y, h });
+  }
 
   // Handlers
   const handleApplyFilter = () => {
@@ -108,44 +113,34 @@ export default function Trends() {
   return (
     <div className="flex flex-col flex-1 gap-6 animate-in fade-in duration-500">
       {/* Top Header Section */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 2xl:flex-row 2xl:items-center">
         <div className="flex flex-col gap-1">
-          <h1 className="text-[#0f172a] font-display text-2xl font-bold leading-normal">
+          <h1 className="page-title">
             Tren & Grafik
           </h1>
-          <p className="text-[#64748b] font-sans text-sm leading-normal">
-            Tren parameter hidrologi: inflow, water level, outflow, dan curah hujan (ARR)
+          <p className="page-description">
+            Tren parameter hidrologi: inflow, tinggi muka air, outflow, dan curah hujan (ARR)
           </p>
         </div>
 
         {/* Filter Bar Widgets (No Shadow!) */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Active PLTA indicator */}
-          <div className="flex h-11 items-center bg-[#ecfeff] border border-[#a5f3fc] rounded-[10px] px-3.5 py-0 gap-2">
-            <div className="size-2 bg-[#0891b2] rounded-full"></div>
-            <span className="text-[#0e7490] font-sans text-sm font-medium">
-              PLTA {plta.shortName}
-            </span>
-          </div>
+          <PlantSwitcher page="trends" />
 
           {/* Period selector */}
-          <div className="flex h-11 items-center bg-white border border-[#e2e8f0] rounded-[10px] px-3.5 py-0 gap-2">
-            <Calendar size={15} className="text-[#94a3b8]" />
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="bg-transparent border-0 text-[#334155] font-sans text-[13px] font-medium focus:outline-none pr-6 cursor-pointer"
-            >
-              <option value="30 Hari Terakhir">30 Hari Terakhir</option>
-              <option value="7 Hari Terakhir">7 Hari Terakhir</option>
-              <option value="24 Jam Terakhir">24 Jam Terakhir</option>
-            </select>
-          </div>
+          <Select
+            aria-label="Periode tren"
+            value={period}
+            onChange={(event) => setPeriod(event.target.value as TrendPeriod)}
+            leadingIcon={<Calendar />}
+            className="w-full sm:w-52"
+            options={TREND_PERIODS.map((item) => ({ value: item, label: item }))}
+          />
 
           {/* Terapkan Button */}
           <button
             onClick={handleApplyFilter}
-            className="flex h-11 justify-center items-center bg-[#0891b2] hover:bg-[#0e7490] text-white font-sans text-[13px] font-semibold rounded-[10px] px-[18px] py-0 border-0 cursor-pointer transition-colors"
+            className="flex h-11 justify-center items-center bg-[#0891b2] hover:bg-[#0e7490] text-white font-sans text-[13px] font-semibold rounded-xl px-[18px] py-0 border-0 cursor-pointer transition-colors"
           >
             Terapkan
           </button>

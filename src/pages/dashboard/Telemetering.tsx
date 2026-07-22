@@ -1,10 +1,11 @@
-import { usePLTAStore } from '../../store/plta-store';
-import { pltaData } from '../../data/plta-data';
+import { useActivePLTA } from '../../features/plta/api/queries';
+import { plantMatchesIdentity } from '../../features/plta/presentation';
+import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
 import { formatNumber } from '../../utils/formatters';
+import RealtimeMonitoringPanel from '../../components/telemetering/RealtimeMonitoringPanel';
 
 export default function Telemetering() {
-  const { selectedPLTAId } = usePLTAStore();
-  const plta = pltaData.find((p) => p.id === selectedPLTAId) || pltaData[0];
+  const { plant, plta, pltaId } = useActivePLTA();
 
   // Dynamic parameters from store
   const currentInflow = plta.liveData.inflow;
@@ -23,11 +24,8 @@ export default function Telemetering() {
     { id: 2, capacity: 61.5 }
   ];
 
-  // Static Date for Live Update Widget
-  const liveUpdateStr = "Live · Update 17 Feb 2025, 14:05 WIB";
-
   // Check if Wonogiri specifically is active to customize terms (e.g. Colo, HJV)
-  const isWonogiri = plta.id === 'wonogiri';
+  const isWonogiri = plantMatchesIdentity(plant, 'wonogiri');
   const awlrStationName = isWonogiri ? 'AWLR Sungai Keduang' : 'AWLR Stasiun Hulu';
   const hilirStationName = isWonogiri ? 'TMA Hilir Bendungan Wonogiri' : 'TMA Hilir Bendungan';
   const coloStationName = isWonogiri ? 'TMA Bendung Colo' : 'TMA Bendung Colo (PJT)';
@@ -37,27 +35,22 @@ export default function Telemetering() {
     <div className="flex flex-col flex-1 gap-6 animate-in fade-in duration-500">
       
       {/* Top Header Section */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 2xl:flex-row 2xl:items-center">
         <div className="flex flex-col gap-1">
-          <h1 className="text-[#0f172a] font-display text-2xl font-bold leading-tight">
+          <h1 className="page-title">
             Telemetering — PLTA {plta.shortName}
           </h1>
-          <p className="text-[#64748b] font-sans text-sm leading-normal">
-            {plta.waduk} · {plta.location} · Data real-time telemetering
+          <p className="page-description">
+            {plta.waduk} · {plta.location} · Data operasional terkini
           </p>
         </div>
 
-        {/* Live Status Widget (No Shadow!) */}
-        <div className="flex w-fit h-10 shrink-0 items-center bg-white border border-[#e2e8f0] rounded-[10px] px-3.5 py-0 gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
-          <span className="text-[#334155] font-sans text-[13px] font-medium">
-            {liveUpdateStr}
-          </span>
+        <div className="flex w-full flex-col gap-2.5 xl:w-auto xl:flex-row xl:items-center">
+          <PlantSwitcher page="telemetering" />
         </div>
       </div>
+
+      <RealtimeMonitoringPanel pltaId={pltaId} />
 
       {/* 3-Column Layout Grid */}
       <div className="flex flex-col xl:flex-row gap-6">

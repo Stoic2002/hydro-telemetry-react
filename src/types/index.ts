@@ -45,7 +45,7 @@ export interface PLTAInfo {
   awsSensors?: AWSSensor[];
   hasExtendedML?: boolean;
   notes?: string;
-  historicalData: any[]; // Or TimeSeriesPoint[] if typed exactly
+  historicalData: PLTAHistoricalPoint[];
 }
 
 export interface LiveData {
@@ -95,6 +95,13 @@ export interface AWSSensor {
 export interface TimeSeriesPoint {
   timestamp: string;  // ISO timestamp
   value: number;
+}
+
+export interface PLTAHistoricalPoint {
+  timestamp: string;
+  waterLevel: number;
+  inflow: number;
+  outflow: number;
 }
 
 export interface MultiSeriesPoint {

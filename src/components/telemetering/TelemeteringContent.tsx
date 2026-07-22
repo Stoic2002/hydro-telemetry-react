@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Droplets, CloudRain, Search, Filter } from 'lucide-react';
 import StationCard from './StationCard';
 
-import { PJT_RAINFALL_DATA, PJT_WATER_DATA } from '../../data/pjt-mock-data';
+import { PJT_RAINFALL_DATA, PJT_WATER_DATA } from '../../mocks/pjt.mock';
 
 const WATER_STATIONS = PJT_WATER_DATA;
 const RAINFALL_STATIONS = PJT_RAINFALL_DATA;

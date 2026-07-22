@@ -1,94 +1,69 @@
-# PLTA Monitoring - Design System
+# PLTA Monitoring — Panduan Konsistensi UI
 
-Foundations untuk website Telemetering, Forecasting & Reporting — dark control-room theme.
+Panduan ini menjadi acuan untuk seluruh fitur dashboard: Overview, Telemetering, Forecasting, Tren & Grafik, Laporan, Input GHW, Katalog Monitoring, serta halaman pengguna.
 
----
+## 1. Warna
 
-## 01 — Color Palette
+| Token | Nilai | Penggunaan |
+| --- | --- | --- |
+| `surface/base` | `#F8FAFC` | Latar aplikasi |
+| `surface/raised` | `#FFFFFF` | Kartu dan kontrol |
+| `surface/overlay` | `#F1F5F9` | Area sekunder |
+| `border/subtle` | `#E2E8F0` | Border kartu dan kontrol |
+| `text/primary` | `#0F172A` | Judul dan nilai utama |
+| `text/secondary` | `#334155` | Isi utama |
+| `text/muted` | `#64748B` | Deskripsi |
+| `brand/primary` | `#22D3EE` | Aksen ringan |
+| `brand/primary-strong` | `#0891B2` | Tombol dan state aktif |
 
-### Surface, Border & Text
+Status menggunakan hijau untuk normal, amber untuk peringatan, dan merah untuk gangguan atau bahaya.
 
-| Name | Hex Code |
+## 2. Hierarki tipografi
+
+| Elemen | Font | Ukuran / bobot |
+| --- | --- | --- |
+| Judul halaman | Space Grotesk | `22px / 700` |
+| Deskripsi halaman | Inter | `13px / 400`, line-height `20px` |
+| Judul bagian | Inter | `16px / 600` |
+| Judul kartu | Inter | `13–15px / 600` |
+| Label field | Inter | `12px / 600` |
+| Nilai telemetri | JetBrains Mono | `16px / 700` |
+
+Gunakan kelas bersama `page-title` dan `page-description` untuk header halaman. Judul halaman tidak memakai ikon dekoratif. Tombol kembali tetap boleh ditempatkan terpisah di sebelah kiri karena merupakan aksi navigasi.
+
+## 3. Spacing dan radius
+
+| Token | Nilai |
 | --- | --- |
-| **surface/base** | `#0B1220` |
-| **surface/raised** | `#111C2E` |
-| **surface/overlay** | `#1A2740` |
-| **border/subtle** | `#223049` |
-| **text/primary** | `#F1F5F9` |
-| **text/secondary** | `#94A3B8` |
-| **text/muted** | `#64748B` |
+| `space/xs` | `4px` |
+| `space/sm` | `8px` |
+| `space/md` | `16px` |
+| `space/lg` | `24px` |
+| `space/xl` | `32px` |
+| `radius/sm` | `6px` |
+| `radius/md` | `10px` |
+| `radius/lg` | `16px` |
 
-### Brand & Status
+Jarak antara judul dan deskripsi halaman adalah `4px`; jarak header ke konten utama adalah `24px`.
 
-| Name | Hex Code |
-| --- | --- |
-| **brand/primary** | `#22D3EE` |
-| **brand/primary-strong** | `#0891B2` |
-| **status/success** | `#34D399` |
-| **status/warning** | `#FBBF24` |
-| **status/danger** | `#F87171` |
-| **status/info** | `#60A5FA` |
+## 4. Kontrol form
 
-### Chart Series
+- Tinggi kontrol standar: `44px`; kontrol filter kompak: `36px`.
+- Input dan dropdown standar menggunakan radius `12px`, border `#E2E8F0`, dan focus ring cyan.
+- Label field berukuran `12px`, semibold, warna muted.
+- Daftar opsi dropdown muncul `8px` di bawah field, selebar field, berada di layer overlay, dan tidak menutupi field yang sedang dibuka.
+- Tombol dalam satu baris filter harus setinggi kontrol di sebelahnya.
 
-* **chart/series-1**
-* **chart/series-2**
-* **chart/series-3**
-* **chart/series-4**
+## 5. Bahasa antarmuka
 
----
+- Tampilkan manfaat dan kondisi yang dipahami operator, bukan detail implementasi.
+- Istilah seperti WebSocket, REST, response, payload, dan nama endpoint tidak ditampilkan pada layar operasional.
+- Contoh status yang benar: `Data diperbarui otomatis`, `Memulihkan koneksi`, dan `Pembaruan terhenti`.
+- Istilah teknis tetap boleh muncul pada fitur konfigurasi khusus admin, misalnya protokol tag di Katalog Monitoring.
 
-## 02 — Typography
+## 6. Pola komponen
 
-| Font Details | Example Text |
-| --- | --- |
-| **Space Grotesk / 36 / bold** | Telemetering Dashboard |
-| **Space Grotesk / 28 / semibold** | Inflow Forecasting — 7 Days |
-| **Space Grotesk / 20 / semibold** | Reservoir Water Level |
-| **Inter / 16 / regular** | Data telemetri diperbarui setiap 5 menit dari RTU di intake, penstock, dan turbine hall. |
-| **Inter / 12 / medium** | LAST SYNC 14:32 WIB · STATION UPPER DAM |
-| **JetBrains Mono / 16** *(angka telemetri)* | 452.80 mdpl · 128.4 m³/s · 86.2 MW |
-
----
-
-## 03 — Spacing Scale
-
-| Token Name | Value |
-| --- | --- |
-| **space/xs** | 4px |
-| **space/sm** | 8px |
-| **space/md** | 16px |
-| **space/lg** | 24px |
-| **space/xl** | 32px |
-| **space/2xl** | 48px |
-
----
-
-## 04 — Corner Radius
-
-| Token Name | Value |
-| --- | --- |
-| **radius/sm** | 6px |
-| **radius/md** | 10px |
-| **radius/lg** | 16px |
-
----
-
-## 05 — Core Elements
-
-### Buttons & Status Badges
-
-* **Buttons:** `Generate Report` (Primary), `Export CSV` (Secondary/Surface Raised)
-* **Badges:** `Normal` (Success), `Siaga` (Warning), `Awas` (Danger)
-
-### KPI Card (Telemetering)
-
-* **Title:** WATER LEVEL · UPPER DAM
-* **Value:** 452.80 mdpl
-* **Trend/Info:** +0.35 m vs kemarin · forecast stabil
-
-### Alert Banner
-
-* **Status:** Warning
-* **Title:** Debit inflow melewati ambang siaga
-* **Description:** Forecast 6 jam ke depan: 142 m³/s. Periksa bukaan spillway gate 2.
+- Header halaman: judul, satu deskripsi ringkas, lalu aksi atau filter di sisi kanan bila diperlukan.
+- Kartu: border tipis dan permukaan putih; bayangan hanya dipakai untuk overlay seperti dropdown atau dialog.
+- Ikon dipakai untuk aksi, status, atau navigasi. Hindari ikon dekoratif di samping judul halaman.
+- Nilai kosong ditulis `N/A` atau `—` secara konsisten sesuai jenis data.

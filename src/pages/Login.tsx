@@ -1,21 +1,37 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { useAuthStore } from '../store/auth-store';
 
+const loginSchema = z.object({
+  username: z.string().trim().min(1, 'Username wajib diisi'),
+  password: z.string().min(1, 'Password wajib diisi'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading, error, clearError } = useAuthStore();
   const navigate = useNavigate();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onChange',
+    defaultValues: { username: '', password: '' },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitLogin = async ({ username, password }: LoginFormValues) => {
     clearError();
     const success = await login(username, password);
     if (success) {
-      navigate('/dashboard/overview');
+      navigate('/dashboard', { replace: true });
     }
   };
 
@@ -49,7 +65,7 @@ export default function Login() {
 
         {/* Card Form */}
         <form 
-          onSubmit={handleSubmit} 
+          onSubmit={handleSubmit(submitLogin)}
           className="flex w-full sm:w-[400px] h-fit flex-col bg-surface-raised border border-border-subtle rounded-2xl p-8 gap-5"
         >
           <div className="flex flex-col gap-1.5">
@@ -79,13 +95,15 @@ export default function Login() {
                 id="username"
                 type="text"
                 placeholder="contoh: budi.santoso"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
+                {...register('username', { onChange: clearError })}
+                aria-invalid={Boolean(errors.username)}
                 className="w-full bg-transparent border-none outline-none text-text-primary placeholder:text-text-muted font-sans text-sm leading-normal"
                 autoComplete="username"
               />
             </div>
+            {errors.username && (
+              <span className="text-xs font-medium text-status-danger">{errors.username.message}</span>
+            )}
           </div>
 
           {/* Password Field */}
@@ -99,9 +117,8 @@ export default function Login() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                {...register('password', { onChange: clearError })}
+                aria-invalid={Boolean(errors.password)}
                 className="w-full bg-transparent border-none outline-none text-text-primary placeholder:text-text-muted font-sans text-sm leading-normal tracking-[1.4px]"
                 autoComplete="current-password"
               />
@@ -109,17 +126,20 @@ export default function Login() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="text-text-muted hover:text-text-secondary transition-colors focus:outline-none"
-                tabIndex={-1}
+                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {errors.password && (
+              <span className="text-xs font-medium text-status-danger">{errors.password.message}</span>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading || !username || !password}
+            disabled={isLoading || !isValid}
             className="flex w-full h-12 justify-center items-center bg-brand-primary-strong hover:bg-brand-primary disabled:bg-brand-primary-strong/50 text-white hover:text-surface-base font-sans text-[15px] font-semibold leading-normal rounded-[10px] cursor-pointer disabled:cursor-not-allowed transition-all duration-200"
           >
             {isLoading ? (

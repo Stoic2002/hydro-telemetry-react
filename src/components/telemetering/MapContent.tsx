@@ -1,8 +1,7 @@
-import React from 'react';
 import JavaMap from '../map/JavaMap';
 import Card from '../atoms/Card';
 
-import { PJT_RAINFALL_DATA, PJT_WATER_DATA } from '../../data/pjt-mock-data';
+import { PJT_RAINFALL_DATA, PJT_WATER_DATA } from '../../mocks/pjt.mock';
 
 interface MapContentProps {
   activeTab: 'water' | 'rainfall';

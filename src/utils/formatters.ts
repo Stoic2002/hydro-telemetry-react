@@ -1,5 +1,12 @@
 // Utility Formatters — Sistem Telemetering PLTA
 
+import {
+  formatDateWIB as formatDateInWIB,
+  formatShortDateWIB,
+  formatTimeWIB as formatTimeInWIB,
+  getWIBHour,
+} from '../shared/lib/date';
+
 /**
  * Format number with dot as thousands separator (Indonesian format)
  * e.g. 142300 → "142.300"
@@ -24,34 +31,21 @@ export function formatMetric(n: number | undefined | null, decimals = 2): string
  * Format date to Indonesian format: DD MMM YYYY HH:mm WIB
  */
 export function formatDateWIB(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const day = d.getDate().toString().padStart(2, '0');
-  const month = months[d.getMonth()];
-  const year = d.getFullYear();
-  const hours = d.getHours().toString().padStart(2, '0');
-  const minutes = d.getMinutes().toString().padStart(2, '0');
-  return `${day} ${month} ${year} ${hours}:${minutes} WIB`;
+  return formatDateInWIB(date);
 }
 
 /**
  * Format time only: HH:mm WIB
  */
 export function formatTimeWIB(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const hours = d.getHours().toString().padStart(2, '0');
-  const minutes = d.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes} WIB`;
+  return formatTimeInWIB(date);
 }
 
 /**
  * Format short date: DD MMM YYYY
  */
 export function formatShortDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const day = d.getDate().toString().padStart(2, '0');
-  return `${day} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  return formatShortDateWIB(date);
 }
 
 /**
@@ -78,7 +72,7 @@ export function formatUnit(value: number, unit: string, decimals = 2): string {
  * Get greeting based on current hour
  */
 export function getGreeting(): string {
-  const hour = new Date().getHours();
+  const hour = getWIBHour();
   if (hour < 11) return 'Selamat Pagi';
   if (hour < 15) return 'Selamat Siang';
   if (hour < 18) return 'Selamat Sore';

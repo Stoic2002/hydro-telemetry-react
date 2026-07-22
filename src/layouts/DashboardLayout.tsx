@@ -1,39 +1,53 @@
-import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Suspense, useCallback, useState } from 'react';
+import {
+  Outlet,
+  NavLink,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import {
   LayoutDashboard, Activity, TrendingUp,
   FileText, Edit3, Users, LogOut, ChevronLeft, ChevronRight,
-  ChevronDown, BarChart3
+  BarChart3, Database,
 } from 'lucide-react';
+import {
+  getPLTADashboardPath,
+  getUnscopedDashboardPath,
+  isValidPLTAId,
+} from '../features/plta/routing';
+import { usePlantCatalogQuery } from '../features/plta/api/queries';
 import { useAuthStore } from '../store/auth-store';
-import { usePLTAStore } from '../store/plta-store';
-import { pltaData } from '../data/plta-data';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import AppShellSkeleton from '../components/skeletons/AppShellSkeleton';
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const [isTelemeteringOpen, setIsTelemeteringOpen] = useState(true);
-  const [isTrendsOpen, setIsTrendsOpen] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { selectedPLTAId, setSelectedPLTA } = usePLTAStore();
-  const location = useLocation();
+  const { pltaId } = useParams<{ pltaId: string }>();
+  const plantsQuery = usePlantCatalogQuery();
+  const pltaList = plantsQuery.data ?? [];
+  const selectedPLTAId = isValidPLTAId(pltaId)
+    ? pltaId
+    : (pltaList.find((plant) => plant.isActive) ?? pltaList[0])?.id;
   const navigate = useNavigate();
 
-  const isTelemetering = location.pathname.startsWith('/dashboard/telemetering');
+  const getSelectedDashboardPath = (page: Parameters<typeof getPLTADashboardPath>[1]) => (
+    selectedPLTAId
+      ? getPLTADashboardPath(selectedPLTAId, page)
+      : getUnscopedDashboardPath(page)
+  );
 
-  // Automatically keep Telemetering submenu open if active route is telemetering
-  useEffect(() => {
-    if (location.pathname.startsWith('/dashboard/telemetering')) {
-      setIsTelemeteringOpen(true);
-    }
-  }, [location.pathname]);
+  const closeLogoutDialog = useCallback(() => {
+    setIsLogoutDialogOpen(false);
+  }, []);
 
-  // Automatically keep Trends submenu open if active route is trends
-  useEffect(() => {
-    if (location.pathname.startsWith('/dashboard/trends')) {
-      setIsTrendsOpen(true);
-    }
-  }, [location.pathname]);
+  const handleLogout = useCallback(() => {
+    closeLogoutDialog();
+    logout();
+    navigate('/login', { replace: true });
+  }, [closeLogoutDialog, logout, navigate]);
 
   // Generate initials for the user avatar
   const getInitials = (name: string) => {
@@ -50,7 +64,7 @@ export default function DashboardLayout() {
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 bottom-0 z-40 flex flex-col bg-white border-r border-border-subtle transition-all duration-300 ${
-          collapsed ? 'w-[72px]' : 'w-[280px]'
+          collapsed ? 'w-[72px]' : 'w-64'
         }`}
       >
         {/* Sidebar Header */}
@@ -83,7 +97,8 @@ export default function DashboardLayout() {
           
           {/* Overview */}
           <NavLink
-            to="/dashboard/overview"
+            to={getUnscopedDashboardPath('overview')}
+            end
             className={({ isActive }) =>
               `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
                 isActive
@@ -97,69 +112,25 @@ export default function DashboardLayout() {
             {!collapsed && <span className="font-sans text-sm">Overview</span>}
           </NavLink>
 
-          {/* Telemetering Parent Menu */}
-          <div>
-            <button
-              onClick={() => {
-                if (collapsed) {
-                  setCollapsed(false);
-                }
-                setIsTelemeteringOpen(!isTelemeteringOpen);
-              }}
-              className={`flex h-10 w-full items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap text-left cursor-pointer ${
-                isTelemetering
+          {/* Telemetering */}
+          <NavLink
+            to={getSelectedDashboardPath('telemetering')}
+            className={({ isActive }) =>
+              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
+                isActive
                   ? 'bg-[#ecfeff] text-[#0891b2] font-semibold'
                   : 'text-[#334155] hover:bg-slate-50 hover:text-slate-900'
-              } ${collapsed ? 'justify-center px-0' : ''}`}
-              title={collapsed ? 'Telemetering' : undefined}
-            >
-              <Activity size={18} className="shrink-0 text-current" />
-              {!collapsed && (
-                <>
-                  <span className="font-sans text-sm flex-1">Telemetering</span>
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 text-current ${
-                      isTelemeteringOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </>
-              )}
-            </button>
-
-            {/* Telemetering Dropdown Sub-items */}
-            {isTelemeteringOpen && !collapsed && (
-              <div className="flex flex-col pr-0 pl-[30px] py-1 gap-0.5 animate-in fade-in duration-200">
-                {pltaData.map((plta) => {
-                  const isSelected = selectedPLTAId === plta.id && isTelemetering;
-                  return (
-                    <button
-                      key={plta.id}
-                      onClick={() => {
-                        setSelectedPLTA(plta.id);
-                        navigate('/dashboard/telemetering');
-                      }}
-                      className={`flex h-8 items-center rounded-2xl px-3 w-full text-left transition-colors cursor-pointer hover:bg-slate-50`}
-                    >
-                      <span className={`font-sans text-[13px] leading-normal transition-colors ${
-                        isSelected
-                          ? 'text-[#0891b2] font-medium'
-                          : 'text-[#64748b] hover:text-[#334155]'
-                      }`}>
-                        PLTA {plta.shortName}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-
+              } ${collapsed ? 'justify-center px-0' : ''}`
+            }
+            title={collapsed ? 'Telemetering' : undefined}
+          >
+            <Activity size={18} className="shrink-0 text-current" />
+            {!collapsed && <span className="font-sans text-sm">Telemetering</span>}
+          </NavLink>
 
           {/* Forecasting (Machine Learning) */}
           <NavLink
-            to="/dashboard/machine-learning"
+            to={getSelectedDashboardPath('forecasting')}
             className={({ isActive }) =>
               `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
                 isActive
@@ -174,66 +145,24 @@ export default function DashboardLayout() {
           </NavLink>
 
           {/* Tren & Grafik */}
-          <div>
-            <button
-              onClick={() => {
-                if (collapsed) {
-                  setCollapsed(false);
-                }
-                setIsTrendsOpen(!isTrendsOpen);
-              }}
-              className={`flex h-10 w-full items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap text-left cursor-pointer ${
-                location.pathname.startsWith('/dashboard/trends')
+          <NavLink
+            to={getSelectedDashboardPath('trends')}
+            className={({ isActive }) =>
+              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
+                isActive
                   ? 'bg-[#ecfeff] text-[#0891b2] font-semibold'
                   : 'text-[#334155] hover:bg-slate-50 hover:text-slate-900'
-              } ${collapsed ? 'justify-center px-0' : ''}`}
-              title={collapsed ? 'Tren & Grafik' : undefined}
-            >
-              <BarChart3 size={18} className="shrink-0 text-current" />
-              {!collapsed && (
-                <>
-                  <span className="font-sans text-sm flex-1">Tren &amp; Grafik</span>
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 text-current ${
-                      isTrendsOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </>
-              )}
-            </button>
-
-            {/* Tren & Grafik Dropdown Sub-items */}
-            {isTrendsOpen && !collapsed && (
-              <div className="flex flex-col pr-0 pl-[30px] py-1 gap-0.5 animate-in fade-in duration-200">
-                {pltaData.map((plta) => {
-                  const isSelected = selectedPLTAId === plta.id && location.pathname.startsWith('/dashboard/trends');
-                  return (
-                    <button
-                      key={plta.id}
-                      onClick={() => {
-                        setSelectedPLTA(plta.id);
-                        navigate('/dashboard/trends');
-                      }}
-                      className={`flex h-8 items-center rounded-2xl px-3 w-full text-left transition-colors cursor-pointer hover:bg-slate-50`}
-                    >
-                      <span className={`font-sans text-[13px] leading-normal transition-colors ${
-                        isSelected
-                          ? 'text-[#0891b2] font-medium'
-                          : 'text-[#64748b] hover:text-[#334155]'
-                      }`}>
-                        PLTA {plta.shortName}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+              } ${collapsed ? 'justify-center px-0' : ''}`
+            }
+            title={collapsed ? 'Tren & Grafik' : undefined}
+          >
+            <BarChart3 size={18} className="shrink-0 text-current" />
+            {!collapsed && <span className="font-sans text-sm">Tren &amp; Grafik</span>}
+          </NavLink>
 
           {/* Laporan */}
           <NavLink
-            to="/dashboard/laporan"
+            to={getSelectedDashboardPath('laporan')}
             className={({ isActive }) =>
               `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
                 isActive
@@ -249,7 +178,7 @@ export default function DashboardLayout() {
 
           {/* Input GHW */}
           <NavLink
-            to="/dashboard/data-input-ghw"
+            to={getSelectedDashboardPath('input-ghw')}
             className={({ isActive }) =>
               `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
                 isActive
@@ -263,10 +192,27 @@ export default function DashboardLayout() {
             {!collapsed && <span className="font-sans text-sm">Input GHW</span>}
           </NavLink>
 
+          {/* Katalog Data */}
+          <NavLink
+            to="/dashboard/catalog"
+            end
+            className={({ isActive }) =>
+              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
+                isActive
+                  ? 'bg-[#ecfeff] text-[#0891b2] font-semibold'
+                  : 'text-[#334155] hover:bg-slate-50 hover:text-slate-900'
+              } ${collapsed ? 'justify-center px-0' : ''}`
+            }
+            title={collapsed ? 'Katalog Data' : undefined}
+          >
+            <Database size={18} className="shrink-0 text-current" />
+            {!collapsed && <span className="font-sans text-sm">Katalog Data</span>}
+          </NavLink>
+
           {/* User Management */}
           {user && (user.role === 'Super Admin' || user.role === 'Admin UBP') && (
             <NavLink
-              to="/dashboard/user-admin"
+              to={getSelectedDashboardPath('user-management')}
               className={({ isActive }) =>
                 `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
                   isActive
@@ -287,7 +233,12 @@ export default function DashboardLayout() {
           collapsed ? 'flex-col justify-center px-2 py-2 h-auto gap-2' : 'px-5 justify-between gap-3'
         }`}>
           {user && (
-            <div className={`flex items-center gap-3 overflow-hidden min-w-0 ${collapsed ? 'justify-center w-full' : 'flex-1'}`}>
+            <button
+              type="button"
+              onClick={() => navigate(getSelectedDashboardPath('account'))}
+              title="Profil Saya"
+              className={`flex cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left min-w-0 ${collapsed ? 'justify-center w-full' : 'flex-1'}`}
+            >
               <div className="size-9 flex shrink-0 justify-center items-center bg-[#f1f5f9] rounded-full border border-border-subtle text-[#0891b2] font-sans text-[13px] font-semibold leading-normal">
                 {getInitials(user.name)}
               </div>
@@ -301,12 +252,14 @@ export default function DashboardLayout() {
                   </span>
                 </div>
               )}
-            </div>
+            </button>
           )}
           {!collapsed && (
             <button
+              type="button"
+              aria-label="Keluar dari aplikasi"
               className="text-[#94a3b8] hover:text-red-500 transition-colors shrink-0 focus:outline-none cursor-pointer"
-              onClick={logout}
+              onClick={() => setIsLogoutDialogOpen(true)}
               title="Keluar"
             >
               <LogOut size={16} />
@@ -314,8 +267,10 @@ export default function DashboardLayout() {
           )}
           {collapsed && (
             <button
+              type="button"
+              aria-label="Keluar dari aplikasi"
               className="p-1 rounded-md text-[#94a3b8] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 focus:outline-none cursor-pointer"
-              onClick={logout}
+              onClick={() => setIsLogoutDialogOpen(true)}
               title="Keluar"
             >
               <LogOut size={16} />
@@ -327,14 +282,27 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div
         className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
-          collapsed ? 'ml-[72px]' : 'ml-[280px]'
+          collapsed ? 'ml-[72px]' : 'ml-64'
         }`}
       >
         {/* Page Content */}
         <main className="flex-1 p-6 w-full max-w-[1440px] mx-auto">
-          <Outlet />
+          <Suspense fallback={<AppShellSkeleton embedded />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
+
+      <ConfirmDialog
+        isOpen={isLogoutDialogOpen}
+        title="Keluar dari aplikasi?"
+        description="Sesi Anda di perangkat ini akan diakhiri. Anda perlu masuk kembali untuk mengakses dashboard."
+        confirmLabel="Ya, Keluar"
+        cancelLabel="Tetap Masuk"
+        icon={<LogOut size={21} strokeWidth={2.25} />}
+        onConfirm={handleLogout}
+        onClose={closeLogoutDialog}
+      />
     </div>
   );
 }

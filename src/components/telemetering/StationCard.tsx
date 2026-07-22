@@ -1,7 +1,5 @@
-import React from 'react';
-import { MapPin, Clock, ArrowRight, Activity, Droplets, CloudRain } from 'lucide-react';
+import { Droplets, CloudRain } from 'lucide-react';
 import Card from '../atoms/Card';
-import Badge from '../atoms/Badge';
 
 interface StationCardProps {
   name: string;
@@ -21,7 +19,6 @@ export default function StationCard({
   value,
   unit,
   type,
-  technicalLabel,
   secondaryLabel,
   secondaryValue,
   secondaryUnit,
