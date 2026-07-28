@@ -70,6 +70,32 @@ export function useUpdateUserMutation() {
   });
 }
 
+export function useToggleUserStatusMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) => (
+      usersRepository.updateStatus(userId, isActive)
+    ),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(usersQueryKeys.detail(updatedUser.id), updatedUser);
+      return queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() });
+    },
+  });
+}
+
+export function useDeleteUserMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => usersRepository.deleteById(userId),
+    onSuccess: (_data, userId) => {
+      queryClient.removeQueries({ queryKey: usersQueryKeys.detail(userId) });
+      return queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() });
+    },
+  });
+}
+
 export function useUpdateCurrentUserMutation() {
   const queryClient = useQueryClient();
 

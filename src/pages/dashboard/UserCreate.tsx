@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, UserPlus } from 'lucide-react';
 import { ApiError } from '../../api/http';
@@ -15,6 +15,7 @@ import { useActivePLTAId } from '../../features/plta/routing';
 import { useNotificationStore } from '../../store/notification-store';
 import Input from '../../components/atoms/Input';
 import Select from '../../components/atoms/Select';
+import StatusToggle from '../../components/atoms/StatusToggle';
 
 export default function UserCreate() {
   const activePLTAId = useActivePLTAId();
@@ -32,6 +33,7 @@ export default function UserCreate() {
       isActive: true,
     },
   });
+  const isActive = useWatch({ control: form.control, name: 'isActive' });
 
   const returnToList = () => navigate(getUserManagementPath(activePLTAId));
 
@@ -85,10 +87,11 @@ export default function UserCreate() {
                 { value: 'viewer', label: 'Viewer' },
               ]}
             />
-            <label className="flex h-11 items-center gap-3 self-end rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700">
-              <input type="checkbox" {...form.register('isActive')} className="size-4 accent-[#0891b2]" />
-              Aktifkan akun setelah dibuat
-            </label>
+              <StatusToggle
+              label="Status akun"
+              isActive={isActive}
+              onChange={(isActive) => form.setValue('isActive', isActive, { shouldDirty: true, shouldValidate: true })}
+            />
           </div>
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
             <button type="button" onClick={returnToList} className="h-10 cursor-pointer rounded-xl border-0 bg-transparent px-4 text-sm font-medium text-slate-500 hover:bg-slate-50">Batal</button>

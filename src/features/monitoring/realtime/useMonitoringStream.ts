@@ -35,6 +35,7 @@ export interface UseMonitoringStreamOptions {
   scope: 'plta' | 'river-basin';
   id: string;
   enabled?: boolean;
+  bootstrapLatest?: boolean;
 }
 
 export interface MonitoringStreamState {
@@ -171,16 +172,22 @@ export function useMonitoringStream({
   scope,
   id,
   enabled = true,
+  bootstrapLatest = true,
 }: UseMonitoringStreamOptions): MonitoringStreamState {
   const queryClient = useQueryClient();
-  const pltaQuery = usePLTALatestQuery(id, enabled && scope === 'plta');
+  const pltaQuery = usePLTALatestQuery(
+    id,
+    enabled && bootstrapLatest && scope === 'plta',
+  );
   const riverBasinQuery = useRiverBasinLatestQuery(
     id,
-    enabled && scope === 'river-basin',
+    enabled && bootstrapLatest && scope === 'river-basin',
   );
-  const initialSnapshotFetched = scope === 'plta'
-    ? pltaQuery.isFetched
-    : riverBasinQuery.isFetched;
+  const initialSnapshotFetched = !bootstrapLatest || (
+    scope === 'plta'
+      ? pltaQuery.isFetched
+      : riverBasinQuery.isFetched
+  );
   const [accessToken, setAccessToken] = useState(() => getAccessToken());
   const [status, setStatus] = useState<MonitoringConnectionStatus>('idle');
   const [reconnectAttempt, setReconnectAttempt] = useState(0);

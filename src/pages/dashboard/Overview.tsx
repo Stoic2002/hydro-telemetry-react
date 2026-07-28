@@ -2,6 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { getPLTADashboardPath } from '../../features/plta/routing';
 import JavaMap from '../../components/map/JavaMap';
 
+const OVERVIEW_MAP_PROJECTION = {
+  center: [110.0, -7.35] as [number, number],
+  scale: 24_000,
+};
+
 export default function Overview() {
   const navigate = useNavigate();
 
@@ -23,8 +28,11 @@ export default function Overview() {
         </div>
       </div>
 
-      <div className="w-full">
-        <JavaMap onPLTAClick={handlePLTAClick} />
+      <div className="mx-auto flex w-full max-w-[1480px] items-center justify-center overflow-hidden">
+        <JavaMap
+          onPLTAClick={handlePLTAClick}
+          projectionConfig={OVERVIEW_MAP_PROJECTION}
+        />
       </div>
     </div>
   );

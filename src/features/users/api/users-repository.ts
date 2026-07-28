@@ -13,4 +13,6 @@ export interface UsersRepository {
   updateCurrentUser(input: UpdateUserInput): Promise<UserAccount>;
   changeCurrentPassword(input: ChangePasswordInput): Promise<void>;
   updateById(userId: string, input: UpdateUserInput): Promise<UserAccount>;
+  updateStatus(userId: string, isActive: boolean): Promise<UserAccount>;
+  deleteById(userId: string): Promise<void>;
 }

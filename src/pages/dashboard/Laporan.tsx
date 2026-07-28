@@ -1,324 +1,334 @@
-import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { useCallback, useState, type FormEvent } from 'react';
+import {
+  CalendarDays,
+  CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  LoaderCircle,
+  Plus,
+  XCircle,
+} from 'lucide-react';
+import Button from '../../components/atoms/Button';
+import Select from '../../components/atoms/Select';
+import Sheet from '../../components/ui/Sheet';
+import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
 import { useActivePLTA } from '../../features/plta/api/queries';
 import { useNotificationStore } from '../../store/notification-store';
-import { formatNumber } from '../../utils/formatters';
-import { Eye, Download, ChevronDown, ChevronUp } from 'lucide-react';
-import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
-import Select from '../../components/atoms/Select';
 
-interface ReportRow {
-  date: string;
-  average: number;
-  min: number;
-  max: number;
-  source: string;
+type ReportTemplate = 'timeseries' | 'roh' | 'elevation' | 'rtow';
+type ReportType = 'daily' | 'monthly' | 'yearly';
+type ReportStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+interface LocalReport {
+  id: string;
+  template: ReportTemplate;
+  type: ReportType;
+  periodStart: string;
+  periodEnd: string;
+  status: ReportStatus;
+  createdAt: Date;
 }
 
-const REPORT_PARAMETERS = ['inflow', 'waterLevel', 'outflow', 'produksi'] as const;
-const REPORT_YEARS = ['2025', '2026'] as const;
-const REPORT_MONTHS = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-] as const;
-
-type ReportParameter = (typeof REPORT_PARAMETERS)[number];
-type ReportMonth = (typeof REPORT_MONTHS)[number];
-
-const MONTH_INDEX: Record<ReportMonth, number> = {
-  Januari: 0,
-  Februari: 1,
-  Maret: 2,
-  April: 3,
-  Mei: 4,
-  Juni: 5,
-  Juli: 6,
-  Agustus: 7,
-  September: 8,
-  Oktober: 9,
-  November: 10,
-  Desember: 11,
+const REPORT_TEMPLATES: Record<ReportTemplate, string> = {
+  timeseries: 'Laporan Time Series',
+  roh: 'Rencana Operasi Harian (ROH)',
+  elevation: 'Kurva Elevasi',
+  rtow: 'Rencana Tahunan Operasi Waduk (RTOW)',
 };
 
-const MONTH_SHORT: Record<ReportMonth, string> = {
-  Januari: 'Jan',
-  Februari: 'Feb',
-  Maret: 'Mar',
-  April: 'Apr',
-  Mei: 'Mei',
-  Juni: 'Jun',
-  Juli: 'Jul',
-  Agustus: 'Agu',
-  September: 'Sep',
-  Oktober: 'Okt',
-  November: 'Nov',
-  Desember: 'Des',
+const REPORT_TYPES: Record<ReportType, string> = {
+  daily: 'Harian',
+  monthly: 'Bulanan',
+  yearly: 'Tahunan',
 };
 
-function isReportParameter(value: string | null): value is ReportParameter {
-  return REPORT_PARAMETERS.some((parameter) => parameter === value);
+const STATUS_META: Record<ReportStatus, { label: string; className: string }> = {
+  pending: {
+    label: 'Menunggu',
+    className: 'bg-amber-50 text-amber-700 ring-amber-600/15',
+  },
+  processing: {
+    label: 'Diproses',
+    className: 'bg-cyan-50 text-cyan-700 ring-cyan-600/15',
+  },
+  completed: {
+    label: 'Completed',
+    className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/15',
+  },
+  failed: {
+    label: 'Gagal',
+    className: 'bg-red-50 text-red-700 ring-red-600/15',
+  },
+};
+
+function getTodayInputValue(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
 }
 
-function isReportYear(value: string | null): value is (typeof REPORT_YEARS)[number] {
-  return REPORT_YEARS.some((year) => year === value);
+function createLocalReportId(): string {
+  return globalThis.crypto?.randomUUID?.()
+    ?? `local-report-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function isReportMonth(value: string | null): value is ReportMonth {
-  return REPORT_MONTHS.some((month) => month === value);
+function formatDate(date: string): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${date}T00:00:00`));
 }
 
-const reportFilterSchema = z.object({
-  parameter: z.enum(REPORT_PARAMETERS),
-  year: z.enum(REPORT_YEARS),
-  month: z.enum(REPORT_MONTHS),
-});
+function formatDateTime(date: Date): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
 
-type ReportFilterValues = z.infer<typeof reportFilterSchema>;
+function ReportStatusBadge({ status }: { status: ReportStatus }) {
+  const statusMeta = STATUS_META[status];
+  const icon = status === 'completed'
+    ? <CheckCircle2 size={14} />
+    : status === 'failed'
+      ? <XCircle size={14} />
+      : <LoaderCircle size={14} className={status === 'processing' ? 'animate-spin' : ''} />;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusMeta.className}`}>
+      {icon}
+      {statusMeta.label}
+    </span>
+  );
+}
 
 export default function Reports() {
   const { addToast } = useNotificationStore();
   const { plta } = useActivePLTA();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const today = getTodayInputValue();
+  const [template, setTemplate] = useState<ReportTemplate>('timeseries');
+  const [type, setType] = useState<ReportType>('monthly');
+  const [periodStart, setPeriodStart] = useState(today);
+  const [periodEnd, setPeriodEnd] = useState(today);
+  const [reports, setReports] = useState<LocalReport[]>([]);
+  const [isQuerySheetOpen, setIsQuerySheetOpen] = useState(false);
+  const closeQuerySheet = useCallback(() => setIsQuerySheetOpen(false), []);
 
-  const parameterParam = searchParams.get('parameter');
-  const yearParam = searchParams.get('year');
-  const monthParam = searchParams.get('month');
-  const parameter = isReportParameter(parameterParam) ? parameterParam : 'inflow';
-  const year = isReportYear(yearParam) ? yearParam : REPORT_YEARS[0];
-  const month = isReportMonth(monthParam) ? monthParam : 'Februari';
-  const [showAllRows, setShowAllRows] = useState(false);
-  const { register, handleSubmit } = useForm<ReportFilterValues>({
-    resolver: zodResolver(reportFilterSchema),
-    values: { parameter, year, month },
-  });
-
-  // Parameter Display mapping
-  const paramInfo = {
-    inflow: { label: 'Inflow (Tahun + Bulan)', unit: 'm³/s', columnName: 'Inflow Rata-Rata', baseVal: plta.liveData.inflow },
-    waterLevel: { label: 'TMA / Elevasi (Tahun + Bulan)', unit: 'mdpl', columnName: 'TMA Rata-Rata', baseVal: plta.liveData.waterLevel },
-    outflow: { label: 'Outflow (Tahun + Bulan)', unit: 'm³/s', columnName: 'Outflow Rata-Rata', baseVal: plta.liveData.outflow },
-    produksi: { label: 'Produksi Listrik (Tahun + Bulan)', unit: 'MW', columnName: 'Produksi Rata-Rata', baseVal: plta.liveData.produksi || 0 },
+  const updateReportStatus = (reportId: string, status: ReportStatus) => {
+    setReports((currentReports) => currentReports.map((report) => (
+      report.id === reportId ? { ...report, status } : report
+    )));
   };
 
-  const baseValue = paramInfo[parameter].baseVal;
+  const createReport = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-  // Generate deterministic mock rows based on the selected period and parameter.
-  const reportData = useMemo<ReportRow[]>(() => {
-    const data: ReportRow[] = [];
-    const selectedMonthIndex = MONTH_INDEX[month];
-    const daysInMonth = new Date(Number(year), selectedMonthIndex + 1, 0).getDate();
-    
-    // Seeded random helper based on date index to keep data consistent between renders
-    const getSeededRandom = (seed: number) => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
+    if (periodStart > periodEnd) {
+      addToast({ type: 'error', message: 'Tanggal mulai tidak boleh melewati tanggal akhir' });
+      return;
+    }
+
+    const reportId = createLocalReportId();
+    const report: LocalReport = {
+      id: reportId,
+      template,
+      type,
+      periodStart,
+      periodEnd,
+      status: 'pending',
+      createdAt: new Date(),
     };
 
-    for (let day = 1; day <= daysInMonth; day++) {
-      const rand = getSeededRandom(day + (parameter === 'inflow' ? 10 : 20));
-      const avgVal = baseValue - (baseValue * 0.1) + (rand * (baseValue * 0.2));
-      const minVal = avgVal - (avgVal * 0.15 * rand);
-      const maxVal = avgVal + (avgVal * 0.15 * (1 - rand));
+    setReports((currentReports) => [report, ...currentReports]);
+    setIsQuerySheetOpen(false);
+    addToast({ type: 'success', message: 'Permintaan laporan ditambahkan ke daftar' });
 
-      data.push({
-        date: `${day.toString().padStart(2, '0')} ${MONTH_SHORT[month]} ${year}`,
-        average: avgVal,
-        min: minVal,
-        max: maxVal,
-        source: 'Telemetri',
-      });
-    }
-    return data;
-  }, [baseValue, month, parameter, year]);
-
-  // Calculate totals/averages
-  const summaryStats = useMemo(() => {
-    const total = reportData.reduce((acc, row) => acc + row.average, 0);
-    const avg = total / reportData.length;
-    const min = Math.min(...reportData.map((row) => row.min));
-    const max = Math.max(...reportData.map((row) => row.max));
-    return { avg, min, max };
-  }, [reportData]);
-
-  const handleExportCSV = () => {
-    addToast({ type: 'info', message: 'Ekspor CSV akan tersedia setelah data laporan siap' });
+    window.setTimeout(() => updateReportStatus(reportId, 'processing'), 500);
+    window.setTimeout(() => updateReportStatus(reportId, 'completed'), 1600);
   };
 
-  const applyFilters = (values: ReportFilterValues) => {
-    setSearchParams((currentParams) => {
-      const nextParams = new URLSearchParams(currentParams);
-      nextParams.set('parameter', values.parameter);
-      nextParams.set('year', values.year);
-      nextParams.set('month', values.month);
-      return nextParams;
-    });
-    setShowAllRows(false);
-    addToast({ type: 'info', message: `Menampilkan data ${paramInfo[values.parameter].columnName}` });
+  const downloadReport = (report: LocalReport) => {
+    const csv = [
+      'Laporan,PLTA,Jenis,Periode Mulai,Periode Akhir,Status,Dibuat Pada',
+      [
+        REPORT_TEMPLATES[report.template],
+        plta.name,
+        REPORT_TYPES[report.type],
+        report.periodStart,
+        report.periodEnd,
+        'completed',
+        report.createdAt.toISOString(),
+      ].map((value) => `"${value.replaceAll('"', '""')}"`).join(','),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `laporan-${report.template}-${report.periodStart}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    addToast({ type: 'success', message: 'File laporan berhasil diunduh' });
   };
-
-  const displayedRows = showAllRows ? reportData : reportData.slice(0, 7);
 
   return (
-    <div className="flex flex-col flex-1 gap-6 animate-in fade-in duration-500">
-      {/* Header Info */}
+    <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
         <div className="flex flex-col gap-1">
-          <h1 className="page-title">
-            Laporan
-          </h1>
-          <p className="page-description">
-            Buka atau unduh data historis PLTA {plta.name} berdasarkan parameter dan periode
+          <h1 className="page-title">Laporan</h1>
+          <p className="page-description">Buat laporan untuk PLTA {plta.name}, lalu pantau status dan unduh hasilnya dari daftar.</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <PlantSwitcher page="laporan" />
+          <Button
+            type="button"
+            leftIcon={<Plus size={17} />}
+            onClick={() => setIsQuerySheetOpen(true)}
+            className="h-11 whitespace-nowrap"
+          >
+            Buat Laporan
+          </Button>
+        </div>
+      </div>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-semibold text-slate-800">Daftar Laporan</h2>
+            <p className="text-xs text-slate-500">Tombol unduh aktif hanya ketika status laporan sudah completed.</p>
+          </div>
+          <p className="text-xs font-medium text-slate-500">
+            {reports.length} laporan
           </p>
         </div>
-        <PlantSwitcher page="laporan" />
-      </div>
 
-      {/* Filter Row Panel (No Shadow!) */}
-      <form onSubmit={handleSubmit(applyFilters)} className="flex flex-col lg:flex-row lg:items-end bg-white border border-[#e2e8f0] rounded-xl p-5 gap-4">
-        <div className="flex flex-col sm:flex-row flex-1 gap-3">
-          {/* Parameter Select */}
+        {reports.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+            <div className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-slate-400"><FileSpreadsheet size={20} /></div>
+            <div>
+              <p className="text-sm font-semibold text-slate-600">Belum ada laporan</p>
+              <p className="mt-1 text-xs text-slate-400">Klik “Buat Laporan” untuk menambahkan laporan pertama.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[840px] w-full border-collapse text-left">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.06em] text-slate-500">
+                <tr>
+                  <th className="px-6 py-3.5 font-semibold">Laporan</th>
+                  <th className="px-4 py-3.5 font-semibold">Periode</th>
+                  <th className="px-4 py-3.5 font-semibold">Dibuat</th>
+                  <th className="px-4 py-3.5 font-semibold">Status</th>
+                  <th className="px-6 py-3.5 text-right font-semibold">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {reports.map((report) => (
+                  <tr key={report.id} className="transition-colors hover:bg-slate-50/70">
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-semibold text-slate-700">{REPORT_TEMPLATES[report.template]}</p>
+                      <p className="mt-1 text-xs text-slate-400">{REPORT_TYPES[report.type]} · PLTA {plta.shortName}</p>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-slate-600">{formatDate(report.periodStart)} – {formatDate(report.periodEnd)}</td>
+                    <td className="px-4 py-4 text-sm text-slate-500">{formatDateTime(report.createdAt)}</td>
+                    <td className="px-4 py-4"><ReportStatusBadge status={report.status} /></td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        type="button"
+                        disabled={report.status !== 'completed'}
+                        onClick={() => downloadReport(report)}
+                        title={report.status === 'completed' ? 'Unduh laporan' : 'Laporan belum selesai diproses'}
+                        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-[#0891b2] bg-white px-3 text-xs font-semibold text-[#0891b2] transition-colors hover:bg-cyan-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+                      >
+                        <Download size={15} />
+                        Unduh
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <Sheet
+        isOpen={isQuerySheetOpen}
+        title="Buat Laporan"
+        description={`Tentukan jenis dan periode laporan untuk PLTA ${plta.name}.`}
+        onClose={closeQuerySheet}
+        footer={(
+          <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closeQuerySheet}
+              className="w-full sm:w-auto"
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="report-query-form"
+              leftIcon={<Plus size={17} />}
+              className="w-full sm:w-auto"
+            >
+              Tambahkan ke Daftar
+            </Button>
+          </div>
+        )}
+      >
+        <form id="report-query-form" onSubmit={createReport} className="flex flex-col gap-5">
+          <div className="rounded-xl bg-cyan-50/70 px-4 py-3 ring-1 ring-cyan-100">
+            <p className="text-xs font-medium text-cyan-700">Target laporan</p>
+            <p className="mt-1 text-sm font-semibold text-slate-800">PLTA {plta.shortName}</p>
+          </div>
+
           <Select
-            label="Parameter"
-            {...register('parameter')}
-            options={[
-              { value: 'inflow', label: 'Inflow (Tahun + Bulan)' },
-              { value: 'waterLevel', label: 'TMA / Elevasi (Tahun + Bulan)' },
-              { value: 'outflow', label: 'Outflow (Tahun + Bulan)' },
-              { value: 'produksi', label: 'Produksi Listrik (Tahun + Bulan)' },
-            ]}
+            label="Jenis Laporan"
+            value={template}
+            onChange={(event) => setTemplate(event.target.value as ReportTemplate)}
+            options={Object.entries(REPORT_TEMPLATES).map(([value, label]) => ({ value, label }))}
           />
-
-          {/* Year Select */}
           <Select
-            label="Tahun"
-            {...register('year')}
-            className="w-full shrink-0 sm:w-[140px]"
-            options={REPORT_YEARS.map((year) => ({ value: year, label: year }))}
+            label="Rentang Laporan"
+            value={type}
+            onChange={(event) => setType(event.target.value as ReportType)}
+            options={Object.entries(REPORT_TYPES).map(([value, label]) => ({ value, label }))}
           />
-
-          {/* Month Select */}
-          <Select
-            label="Bulan"
-            {...register('month')}
-            className="w-full shrink-0 sm:w-[160px]"
-            options={REPORT_MONTHS.map((month) => ({ value: month, label: month }))}
-          />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex shrink-0 gap-2.5">
-          <button
-            type="submit"
-            className="flex h-11 items-center justify-center bg-[#0891b2] hover:bg-[#0e7490] text-white font-sans text-[13px] font-semibold rounded-xl px-[18px] py-0 gap-2 border-0 cursor-pointer transition-colors"
-          >
-            <Eye size={16} />
-            <span>Tampilkan</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="flex h-11 items-center justify-center bg-white border border-[#0891b2] text-[#0891b2] hover:bg-[#ecfeff] font-sans text-[13px] font-semibold rounded-xl px-[18px] py-0 gap-2 cursor-pointer transition-colors"
-          >
-            <Download size={16} />
-            <span>Unduh CSV</span>
-          </button>
-        </div>
-      </form>
-
-      {/* Data Table Card (No Shadow!) */}
-      <div className="flex h-fit flex-col bg-white border border-[#e2e8f0] rounded-xl p-6 gap-3.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex flex-col gap-0.5">
-            <h3 className="text-[#0f172a] font-sans text-base font-semibold">
-              Data {paramInfo[parameter].columnName.split(' ')[0]} — PLTA {plta.shortName}
-            </h3>
-            <p className="text-[#94a3b8] font-sans text-xs leading-normal">
-              Periode {month} {year} · rata-rata harian ({paramInfo[parameter].unit})
-            </p>
-          </div>
-          <span className="text-[#94a3b8] font-sans text-xs leading-normal">
-            Menampilkan {displayedRows.length} dari {reportData.length} baris
-          </span>
-        </div>
-
-        {/* Data Table */}
-        <div className="flex w-full flex-col overflow-x-auto">
-          {/* Table Header Row */}
-          <div className="flex h-[38px] items-center bg-[#f8fafc] rounded-lg px-3.5 py-0 gap-2 min-w-[600px]">
-            <div className="text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] flex-1">
-              Tanggal
-            </div>
-            <div className="w-[160px] text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-              {paramInfo[parameter].columnName}
-            </div>
-            <div className="w-[130px] text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-              Min
-            </div>
-            <div className="w-[130px] text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-              Max
-            </div>
-            <div className="w-[140px] text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-              Sumber
-            </div>
-          </div>
-
-          {/* Table Body rows */}
-          <div className="flex flex-col min-w-[600px] divide-y divide-[#f1f5f9]">
-            {displayedRows.map((row, idx) => (
-              <div key={idx} className="flex h-11 items-center px-3.5 py-0 gap-2 hover:bg-slate-50/50 transition-colors">
-                <div className="text-[#334155] font-sans text-[13px] font-medium flex-1">
-                  {row.date}
-                </div>
-                <div className="w-[160px] text-[#0891b2] font-sans text-[13px] font-semibold text-right">
-                  {formatNumber(row.average, parameter === 'waterLevel' ? 2 : 1)}
-                </div>
-                <div className="w-[130px] text-[#64748b] font-sans text-[13px] text-right">
-                  {formatNumber(row.min, parameter === 'waterLevel' ? 2 : 1)}
-                </div>
-                <div className="w-[130px] text-[#64748b] font-sans text-[13px] text-right">
-                  {formatNumber(row.max, parameter === 'waterLevel' ? 2 : 1)}
-                </div>
-                <div className="w-[140px] text-[#64748b] font-sans text-[13px] text-right">
-                  {row.source}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Table Footer Summary Row */}
-          <div className="flex h-11 items-center bg-[#f8fafc] border-t border-[#e2e8f0] rounded-b-lg px-3.5 py-0 gap-2 min-w-[600px] font-bold text-slate-800">
-            <div className="text-slate-500 uppercase text-[10px] tracking-widest flex-1">
-              Rata-rata Periode
-            </div>
-            <div className="w-[160px] font-mono text-right text-[13px]">
-              {formatNumber(summaryStats.avg, parameter === 'waterLevel' ? 2 : 1)}
-            </div>
-            <div className="w-[130px] font-mono text-right text-[13px] text-[#64748b]">
-              {formatNumber(summaryStats.min, parameter === 'waterLevel' ? 2 : 1)}
-            </div>
-            <div className="w-[130px] font-mono text-right text-[13px] text-[#64748b]">
-              {formatNumber(summaryStats.max, parameter === 'waterLevel' ? 2 : 1)}
-            </div>
-            <div className="w-[140px] text-right text-xs text-slate-400 font-normal">
-              Sistem
-            </div>
-          </div>
-        </div>
-
-        {/* Toggle Load More Button */}
-        <div className="flex justify-center border-t border-[#f1f5f9] pt-3.5 mt-1">
-          <button
-            onClick={() => setShowAllRows(!showAllRows)}
-            className="flex items-center gap-2 text-sm font-bold text-[#0891b2] hover:text-[#0e7490] transition-colors border-0 bg-transparent cursor-pointer uppercase tracking-wider select-none"
-          >
-            <span>{showAllRows ? 'Sembunyikan Data' : 'Tampilkan Lebih Banyak'}</span>
-            {showAllRows ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-        </div>
-      </div>
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+            Tanggal Mulai
+            <span className="relative">
+              <CalendarDays size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+              <input
+                type="date"
+                value={periodStart}
+                max={periodEnd}
+                onChange={(event) => setPeriodStart(event.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-3 pl-10 text-sm text-slate-700 outline-none transition-colors focus:border-[#0891b2] focus:ring-2 focus:ring-[#0891b2]/15"
+              />
+            </span>
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+            Tanggal Akhir
+            <span className="relative">
+              <CalendarDays size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
+              <input
+                type="date"
+                value={periodEnd}
+                min={periodStart}
+                onChange={(event) => setPeriodEnd(event.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white pr-3 pl-10 text-sm text-slate-700 outline-none transition-colors focus:border-[#0891b2] focus:ring-2 focus:ring-[#0891b2]/15"
+              />
+            </span>
+          </label>
+        </form>
+      </Sheet>
     </div>
   );
 }

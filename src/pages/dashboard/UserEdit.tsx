@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, UserRoundCog } from 'lucide-react';
 import {
@@ -19,6 +19,7 @@ import { useNotificationStore } from '../../store/notification-store';
 import FormPageSkeleton from '../../components/skeletons/FormPageSkeleton';
 import Input from '../../components/atoms/Input';
 import Select from '../../components/atoms/Select';
+import StatusToggle from '../../components/atoms/StatusToggle';
 
 export default function UserEdit() {
   const { userId = '' } = useParams<{ userId: string }>();
@@ -38,6 +39,7 @@ export default function UserEdit() {
       isActive: userQuery.data?.isActive ?? true,
     },
   });
+  const isActive = useWatch({ control: form.control, name: 'isActive' });
 
   if (userId === currentUser?.id) {
     return <Navigate to={getPLTADashboardPath(activePLTAId, 'account')} replace />;
@@ -106,10 +108,11 @@ export default function UserEdit() {
                   { value: 'viewer', label: 'Viewer' },
                 ]}
               />
-              <label className="flex h-11 items-center gap-3 self-end rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700">
-                <input type="checkbox" {...form.register('isActive')} className="size-4 accent-[#0891b2]" />
-                Akun aktif
-              </label>
+              <StatusToggle
+                label="Status akun"
+                isActive={isActive}
+                onChange={(isActive) => form.setValue('isActive', isActive, { shouldDirty: true, shouldValidate: true })}
+              />
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
               <button type="button" onClick={returnToList} className="h-10 cursor-pointer rounded-xl border-0 bg-transparent px-4 text-sm font-medium text-slate-500 hover:bg-slate-50">Batal</button>

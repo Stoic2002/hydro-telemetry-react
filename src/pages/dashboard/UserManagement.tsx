@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Edit2, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Plus, Search, Trash2 } from 'lucide-react';
 import {
-  useUpdateUserMutation,
+  useDeleteUserMutation,
+  useToggleUserStatusMutation,
   useUsersQuery,
 } from '../../features/users/api/queries';
 import { getUserManagementErrorMessage } from '../../features/users/error';
@@ -12,15 +13,13 @@ import {
   mapApiRoleToUIRole,
   type UserAccount,
 } from '../../features/users/model';
-import {
-  getCreateUserPath,
-  getEditUserPath,
-} from '../../features/users/routing';
 import { getPLTADashboardPath, useActivePLTAId } from '../../features/plta/routing';
+import UserFormSheet from '../../features/users/components/UserFormSheet';
 import { useAuthStore } from '../../store/auth-store';
 import { useNotificationStore } from '../../store/notification-store';
 import UserTableSkeleton from '../../components/skeletons/UserTableSkeleton';
 import Skeleton from '../../components/atoms/Skeleton';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
 const PAGE_LIMIT = 10;
 
@@ -47,13 +46,19 @@ export default function UserManagement() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [userToDelete, setUserToDelete] = useState<UserAccount | null>(null);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<UserAccount | null>(null);
+  const closeCreateSheet = useCallback(() => setIsCreateSheetOpen(false), []);
+  const closeEditSheet = useCallback(() => setUserToEdit(null), []);
 
   const usersQuery = useUsersQuery({
     page,
     limit: PAGE_LIMIT,
     search: search || undefined,
   });
-  const updateMutation = useUpdateUserMutation();
+  const toggleStatusMutation = useToggleUserStatusMutation();
+  const deleteMutation = useDeleteUserMutation();
 
   const applySearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,13 +66,13 @@ export default function UserManagement() {
     setPage(1);
   };
 
-  const openEditPage = (user: UserAccount) => {
+  const openEditSheet = (user: UserAccount) => {
     if (user.id === currentUser?.id) {
       navigate(getPLTADashboardPath(activePLTAId, 'account'));
       return;
     }
 
-    navigate(getEditUserPath(activePLTAId, user.id, user.username));
+    setUserToEdit(user);
   };
 
   const toggleUserStatus = async (user: UserAccount) => {
@@ -77,14 +82,27 @@ export default function UserManagement() {
     }
 
     try {
-      await updateMutation.mutateAsync({
+      await toggleStatusMutation.mutateAsync({
         userId: user.id,
-        input: { isActive: !user.isActive },
+        isActive: !user.isActive,
       });
       addToast({
         type: 'success',
         message: `Akun ${user.username} ${user.isActive ? 'dinonaktifkan' : 'diaktifkan'}`,
       });
+    } catch (error) {
+      addToast({ type: 'error', message: getUserManagementErrorMessage(error) });
+    }
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      await deleteMutation.mutateAsync(userToDelete.id);
+      if (users.length === 1 && page > 1) setPage((current) => current - 1);
+      addToast({ type: 'success', message: `Akun ${userToDelete.username} telah dihapus permanen` });
+      setUserToDelete(null);
     } catch (error) {
       addToast({ type: 'error', message: getUserManagementErrorMessage(error) });
     }
@@ -105,7 +123,7 @@ export default function UserManagement() {
         </div>
         <button
           type="button"
-          onClick={() => navigate(getCreateUserPath(activePLTAId))}
+          onClick={() => setIsCreateSheetOpen(true)}
           className="flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl border-0 bg-[#0891b2] px-[18px] font-sans text-sm font-semibold text-white transition-colors hover:bg-[#0e7490]"
         >
           <Plus size={16} />
@@ -134,7 +152,7 @@ export default function UserManagement() {
           <div className="flex-1 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">User</div>
           <div className="w-[160px] shrink-0 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">Role</div>
           <div className="w-[140px] shrink-0 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">Status</div>
-          <div className="w-[70px] shrink-0 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">Aksi</div>
+          <div className="w-24 shrink-0 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">Aksi</div>
         </div>
 
         <div className="flex w-full flex-col">
@@ -160,7 +178,7 @@ export default function UserManagement() {
               <div className="flex w-[140px] shrink-0">
                 <button
                   type="button"
-                  disabled={updateMutation.isPending || user.id === currentUser?.id}
+                  disabled={toggleStatusMutation.isPending || deleteMutation.isPending || user.id === currentUser?.id}
                   onClick={() => void toggleUserStatus(user)}
                   title={user.id === currentUser?.id ? 'Kelola akun sendiri melalui Profil Saya' : 'Ubah status pengguna'}
                   className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-medium text-[#334155] disabled:cursor-not-allowed disabled:opacity-60"
@@ -169,9 +187,18 @@ export default function UserManagement() {
                   {user.isActive ? 'Aktif' : 'Nonaktif'}
                 </button>
               </div>
-              <div className="flex w-[70px] shrink-0 items-center">
-                <button type="button" onClick={() => openEditPage(user)} className="cursor-pointer border-0 bg-transparent p-1 text-[#64748b] transition-colors hover:text-[#0f172a]" title={user.id === currentUser?.id ? 'Buka Profil Saya' : 'Edit pengguna'}>
+              <div className="flex w-24 shrink-0 items-center gap-1">
+                <button type="button" onClick={() => openEditSheet(user)} className="cursor-pointer border-0 bg-transparent p-1 text-[#64748b] transition-colors hover:text-[#0f172a]" title={user.id === currentUser?.id ? 'Buka Profil Saya' : 'Edit pengguna'}>
                   <Edit2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteMutation.isPending || user.id === currentUser?.id}
+                  onClick={() => setUserToDelete(user)}
+                  title={user.id === currentUser?.id ? 'Akun sendiri tidak dapat dihapus' : 'Hapus pengguna'}
+                  className="cursor-pointer border-0 bg-transparent p-1 text-red-500 transition-colors hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
@@ -190,6 +217,31 @@ export default function UserManagement() {
           </div>
         </div>
       </section>
+
+      <UserFormSheet
+        mode="create"
+        isOpen={isCreateSheetOpen}
+        onClose={closeCreateSheet}
+      />
+
+      {userToEdit && (
+        <UserFormSheet
+          mode="edit"
+          isOpen
+          user={userToEdit}
+          onClose={closeEditSheet}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={userToDelete !== null}
+        title="Hapus pengguna?"
+        description={userToDelete ? <>Akun <strong>{userToDelete.username}</strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</> : null}
+        confirmLabel="Hapus Permanen"
+        isConfirming={deleteMutation.isPending}
+        onConfirm={() => void confirmDeleteUser()}
+        onClose={() => setUserToDelete(null)}
+      />
     </div>
   );
 }

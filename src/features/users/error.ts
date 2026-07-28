@@ -6,7 +6,9 @@ export function getUserManagementErrorMessage(error: unknown): string {
   }
 
   if (error.status === 0) return 'Tidak dapat terhubung ke server';
+  if (error.status === 400) return 'Aksi tidak dapat dilakukan untuk akun sendiri';
   if (error.status === 403) return 'Anda tidak memiliki izin untuk mengelola pengguna';
+  if (error.status === 404) return 'Pengguna tidak ditemukan atau sudah dihapus';
   if (error.status === 409) return 'Username atau email sudah digunakan';
   if (error.status === 422) return 'Data pengguna tidak lolos validasi server';
   return error.message;

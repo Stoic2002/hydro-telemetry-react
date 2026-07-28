@@ -26,6 +26,10 @@ async function parseResponseBody(response: Response): Promise<unknown> {
     }
   }
 
+  if (contentType.startsWith('image/') || contentType.includes('application/octet-stream')) {
+    return response.blob();
+  }
+
   const text = await response.text();
   return text || undefined;
 }
@@ -69,7 +73,9 @@ export async function apiRequest<TResponse>(
   }
 
   const headers = new Headers(initialHeaders);
-  headers.set('Accept', 'application/json');
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
 
   if (auth && !headers.has('Authorization')) {
     const accessToken = getAccessToken();

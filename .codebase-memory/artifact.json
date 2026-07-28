@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "e853fb0e446cad81f3141ee621a7c1d43bc1bf00",
+    "indexed_at": "2026-07-26T09:40:26Z",
+    "project": "Users-arulkarim-Project-tele-frontend-v2",
+    "nodes": 904,
+    "edges": 2000,
+    "original_size": 4456448,
+    "compressed_size": 705040,
+    "compression_level": 3
+}

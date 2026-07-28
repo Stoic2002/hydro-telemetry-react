@@ -118,4 +118,22 @@ export const httpUsersRepository: UsersRepository = {
 
     return mapUser(parseResponse(payload, apiUserSchema, endpoint));
   },
+
+  async updateStatus(userId: string, isActive: boolean): Promise<UserAccount> {
+    const endpoint = `/api/v1/users/${encodeURIComponent(userId)}/status`;
+    const payload = await apiRequest<unknown>(endpoint, {
+      method: 'PATCH',
+      cache: 'no-store',
+      json: { is_active: isActive },
+    });
+
+    return mapUser(parseResponse(payload, apiUserSchema, endpoint));
+  },
+
+  async deleteById(userId: string): Promise<void> {
+    await apiRequest<void>(`/api/v1/users/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+      cache: 'no-store',
+    });
+  },
 };
