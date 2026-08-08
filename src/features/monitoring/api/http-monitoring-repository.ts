@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../api/http';
+import { apiRequest, createApiResponseParser } from '../../../api/http';
 import type {
   MonitoringParameterLatest,
   PLTALatestMonitoring,
@@ -11,27 +11,9 @@ import {
   type ApiPLTALatestMonitoring,
 } from './schemas';
 
-interface SafeParseSchema<T> {
-  safeParse(value: unknown):
-    | { success: true; data: T }
-    | { success: false; error: { flatten: () => unknown } };
-}
-
-function parseResponse<T>(
-  payload: unknown,
-  schema: SafeParseSchema<T>,
-  endpoint: string,
-): T {
-  const result = schema.safeParse(payload);
-  if (result.success) return result.data;
-
-  throw new ApiError('Respons server tidak sesuai kontrak data monitoring', {
-    status: 502,
-    statusText: 'Invalid API Response',
-    details: result.error.flatten(),
-    url: endpoint,
-  });
-}
+const parseResponse = createApiResponseParser(
+  'Respons server tidak sesuai kontrak data monitoring',
+);
 
 export function mapMonitoringParameterLatest(
   parameter: ApiMonitoringParameterLatest,

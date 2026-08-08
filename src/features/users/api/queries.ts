@@ -12,11 +12,10 @@ import type {
 } from '../model';
 import { usersRepository } from './repository';
 
-export const usersQueryKeys = {
+const usersQueryKeys = {
   all: ['users'] as const,
   lists: () => [...usersQueryKeys.all, 'list'] as const,
   list: (params: UserListParams) => [...usersQueryKeys.lists(), params] as const,
-  detail: (userId: string) => [...usersQueryKeys.all, 'detail', userId] as const,
 };
 
 export function useUsersQuery(params: UserListParams) {
@@ -24,26 +23,6 @@ export function useUsersQuery(params: UserListParams) {
     queryKey: usersQueryKeys.list(params),
     queryFn: () => usersRepository.list(params),
     placeholderData: keepPreviousData,
-  });
-}
-
-export function useUserForEditQuery(userId: string, username?: string) {
-  return useQuery({
-    queryKey: usersQueryKeys.detail(userId),
-    queryFn: async () => {
-      const result = await usersRepository.list({
-        page: 1,
-        limit: 200,
-        search: username || undefined,
-      });
-      const user = result.items.find((item) => item.id === userId);
-
-      if (!user) {
-        throw new Error('Pengguna tidak ditemukan pada hasil pencarian server');
-      }
-
-      return user;
-    },
   });
 }
 
@@ -63,10 +42,7 @@ export function useUpdateUserMutation() {
     mutationFn: ({ userId, input }: { userId: string; input: UpdateUserInput }) => (
       usersRepository.updateById(userId, input)
     ),
-    onSuccess: (updatedUser) => {
-      queryClient.setQueryData(usersQueryKeys.detail(updatedUser.id), updatedUser);
-      return queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() }),
   });
 }
 
@@ -77,10 +53,7 @@ export function useToggleUserStatusMutation() {
     mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) => (
       usersRepository.updateStatus(userId, isActive)
     ),
-    onSuccess: (updatedUser) => {
-      queryClient.setQueryData(usersQueryKeys.detail(updatedUser.id), updatedUser);
-      return queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() }),
   });
 }
 
@@ -89,10 +62,7 @@ export function useDeleteUserMutation() {
 
   return useMutation({
     mutationFn: (userId: string) => usersRepository.deleteById(userId),
-    onSuccess: (_data, userId) => {
-      queryClient.removeQueries({ queryKey: usersQueryKeys.detail(userId) });
-      return queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: usersQueryKeys.lists() }),
   });
 }
 

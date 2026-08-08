@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../api/http';
+import { ApiError, apiRequest, createApiResponseParser } from '../../../api/http';
 import type {
   DailyHydrology,
   MonthlyHydrology,
@@ -13,67 +13,19 @@ import {
   type ApiPLTAHydrologyDashboard,
 } from './schemas';
 
-interface SafeParseSchema<T> {
-  safeParse(value: unknown):
-    | { success: true; data: T }
-    | { success: false; error: { flatten: () => unknown } };
-}
-
-function parseResponse<T>(
-  payload: unknown,
-  schema: SafeParseSchema<T>,
-  endpoint: string,
-): T {
-  const result = schema.safeParse(payload);
-  if (result.success) return result.data;
-
-  throw new ApiError('Respons server tidak sesuai kontrak data hidrologi', {
-    status: 502,
-    statusText: 'Invalid API Response',
-    details: result.error.flatten(),
-    url: endpoint,
-  });
-}
+const parseResponse = createApiResponseParser(
+  'Respons server tidak sesuai kontrak data hidrologi',
+);
 
 function mapDailyHydrology(
   daily: NonNullable<ApiPLTAHydrologyDashboard['daily']>,
 ): DailyHydrology {
   return {
     date: daily.tanggal,
-    upstream: {
-      targetTma: daily.hulu.target_tma,
-      targetVolume: daily.hulu.volume_target,
-      reservoirVolume: daily.hulu.volume_waduk,
-      spillwayTmaLimit: daily.hulu.batas_tma_limpas,
-      molTmaLimit: daily.hulu.batas_tma_mol,
-      reservoirTma: daily.hulu.tma_waduk,
-      reservoirTmaTime: daily.hulu.tma_waduk_time,
-      inflow: daily.hulu.inflow,
-      upstreamRainfall: daily.hulu.curah_hujan_hulu,
-      upstreamTurbidity: daily.hulu.turbidity_hulu,
-      effectiveVolumeToTarget: daily.hulu.volume_efektif_thd_target,
-      effectiveVolumeToMol: daily.hulu.volume_efektif_thd_mol,
-      availableEnergyToTargetMwh: daily.hulu.ketersediaan_energi_thd_target_mwh,
-      availableEnergyToMolMwh: daily.hulu.ketersediaan_energi_thd_mol_mwh,
-      fullLoadServiceHours: daily.hulu.service_hour_full_load_jam,
-    },
-    dam: {
-      plannedTurbineDischarge: daily.dam.rencana_debit_turbin,
-      plannedSpillwayDischarge: daily.dam.rencana_debit_spillway,
-      plannedHjvDischarge: daily.dam.rencana_debit_hjv,
-      turbineDischargeT1: daily.dam.debit_turbin_t1,
-      turbineDischargeT2: daily.dam.debit_turbin_t2,
-      spillwayDischarge: daily.dam.debit_spillway,
-      hjvDischarge: daily.dam.debit_hjv,
-      deltaHeadCm: daily.dam.delta_head_cm,
-    },
-    downstream: {
-      tailraceTma: daily.hilir.tma_tailrace,
-      headM: daily.hilir.head_m,
-      turbineEfficiency1: daily.hilir.eff_turbin_1,
-      turbineEfficiency2: daily.hilir.eff_turbin_2,
-      downstreamTurbidity: daily.hilir.turbidity_hilir,
-    },
+    constants: daily.constants,
+    upstream: daily.hulu,
+    dam: daily.dam,
+    downstream: daily.hilir,
     pendingFormulas: daily.pending_formulas,
   };
 }
@@ -83,6 +35,9 @@ function mapDashboard(
 ): PLTAHydrologyDashboard {
   return {
     pltaId: dashboard.plta.id,
+    pltaCode: dashboard.plta.code,
+    pltaName: dashboard.plta.name,
+    constants: dashboard.plta.constants,
     monthly: dashboard.monthly ? mapMonthly(dashboard.monthly) : null,
     daily: dashboard.daily ? mapDailyHydrology(dashboard.daily) : null,
   };
@@ -108,12 +63,13 @@ function mapMonthly(item: ApiMonthlyHydrology): MonthlyHydrology {
 }
 
 export const httpHydrologyRepository: HydrologyRepository = {
-  async getPLTADashboard(pltaId, options) {
+  async getPLTADashboard(pltaId, date, options) {
     const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}`;
     const payload = await apiRequest<unknown>(endpoint, {
       method: 'GET',
       cache: 'no-store',
       signal: options?.signal,
+      query: { tanggal: date },
     });
 
     return mapDashboard(

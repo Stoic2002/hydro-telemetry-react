@@ -1,4 +1,4 @@
-export interface ApiErrorOptions {
+interface ApiErrorOptions {
   status: number;
   statusText: string;
   code?: string;

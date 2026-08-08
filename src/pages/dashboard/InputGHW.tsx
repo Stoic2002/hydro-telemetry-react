@@ -1,9 +1,4 @@
-import {
-  useRef,
-  useState,
-  type DragEvent,
-  type ReactNode,
-} from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -14,59 +9,65 @@ import {
   Trash2,
   UploadCloud,
 } from 'lucide-react';
+import Select from '../../components/atoms/Select';
 import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
 import { useActivePLTA } from '../../features/plta/api/queries';
-import {
-  parseElevationWorkbook,
-  parseRTOWWorkbook,
-  useCreateElevationMutation,
-  useCreateRTOWMutation,
-  type ParsedElevationWorkbook,
-  type ParsedRTOWWorkbook,
-} from '../../features/uploads';
+import { useUploadElevationExcelMutation } from '../../features/uploads';
 import type { UploadHistoryItem } from '../../features/uploads/model';
 import { formatDateWIB } from '../../shared/lib/date';
 import { useNotificationStore } from '../../store/notification-store';
 
 const TEMPLATE_URL = '/templates/template-upload-plta.xlsx';
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from(
+  { length: CURRENT_YEAR - 1988 },
+  (_, index) => CURRENT_YEAR + 1 - index,
+).map((value) => ({ value, label: String(value) }));
 
-interface SelectedWorkbook<TData> {
+interface SelectedWorkbook {
   file: File;
-  data: TData | null;
   error: string | null;
-  isParsing: boolean;
 }
 
-interface UploadCardProps<TData> {
-  title: string;
-  description: string;
-  sheetName: string;
-  helper: ReactNode;
-  selection: SelectedWorkbook<TData> | null;
+interface UploadCardProps {
+  selection: SelectedWorkbook | null;
+  year: number;
+  publish: boolean;
   isUploading: boolean;
-  summary: (data: TData) => string;
   onSelect: (file: File) => void;
   onClear: () => void;
+  onYearChange: (year: number) => void;
+  onPublishChange: (publish: boolean) => void;
   onUpload: () => void;
 }
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
-  return 'Terjadi kesalahan saat memproses file Excel.';
+  return 'Terjadi kesalahan saat mengunggah file Excel.';
 }
 
-function UploadCard<TData>({
-  title,
-  description,
-  sheetName,
-  helper,
+function validateWorkbook(file: File): string | null {
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    return 'File harus menggunakan format .xlsx.';
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return 'Ukuran file melebihi batas backend 5 MB.';
+  }
+  return null;
+}
+
+function UploadCard({
   selection,
+  year,
+  publish,
   isUploading,
-  summary,
   onSelect,
   onClear,
+  onYearChange,
+  onPublishChange,
   onUpload,
-}: UploadCardProps<TData>) {
+}: UploadCardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -90,111 +91,142 @@ function UploadCard<TData>({
   };
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-cyan-50 text-brand-primary-strong">
+    <section className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-brand-primary-strong">
           <FileSpreadsheet size={18} />
         </span>
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          <p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p>
+          <h2 className="text-base font-semibold text-slate-900">Elevasi & Volume Waduk</h2>
+          <p className="mt-0.5 text-xs text-slate-500">Unggah satu file Excel untuk tahun data yang dipilih.</p>
         </div>
       </div>
 
-      {!selection ? (
-        <div
-          role="button"
-          tabIndex={0}
-          onDragEnter={handleDrag}
-          onDragOver={handleDrag}
-          onDragLeave={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click();
-          }}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed px-4 py-8 text-center outline-none transition-colors focus:ring-2 focus:ring-brand-primary-strong/30 ${
-            isDragging ? 'border-brand-primary-strong bg-cyan-50/70' : 'border-slate-300 bg-slate-50 hover:border-cyan-400'
-          }`}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) onSelect(file);
-            }}
-          />
-          <UploadCloud size={32} className="text-brand-primary-strong" />
-          <span className="text-[13px] font-medium text-slate-700">Tarik file Excel ke sini atau pilih file</span>
-          <span className="text-[11px] text-slate-400">Format .xlsx · maksimum 10 MB</span>
-        </div>
-      ) : (
-        <div className={`flex flex-col gap-3 rounded-xl border p-4 ${
-          selection.error ? 'border-red-200 bg-red-50/50' : 'border-cyan-200 bg-cyan-50/30'
-        }`}>
-          <div className="flex items-center gap-3">
-            {selection.isParsing ? (
-              <LoaderCircle className="shrink-0 animate-spin text-brand-primary-strong" size={23} />
-            ) : selection.error ? (
-              <AlertCircle className="shrink-0 text-red-500" size={23} />
-            ) : (
-              <CheckCircle2 className="shrink-0 text-emerald-600" size={23} />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-900">{selection.file.name}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {(selection.file.size / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={clearSelection}
-              disabled={isUploading}
-              title="Hapus file"
-              className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="p-5 sm:p-6">
+          {!selection ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => inputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click();
+              }}
+              className={`flex min-h-60 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-5 py-10 text-center outline-none transition-colors focus:ring-2 focus:ring-brand-primary-strong/30 ${
+                isDragging
+                  ? 'border-brand-primary-strong bg-cyan-50/70'
+                  : 'border-slate-300 bg-slate-50/60 hover:border-cyan-400 hover:bg-cyan-50/30'
+              }`}
             >
-              <Trash2 size={16} />
-            </button>
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onSelect(file);
+                }}
+              />
+              <span className="flex size-12 items-center justify-center rounded-full bg-white text-brand-primary-strong ring-1 ring-slate-200">
+                <UploadCloud size={23} />
+              </span>
+              <p className="mt-4 text-sm font-semibold text-slate-700">Tarik file Excel ke area ini</p>
+              <p className="mt-1 text-xs text-slate-400">atau klik untuk memilih file dari perangkat</p>
+              <span className="mt-4 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200">
+                .xlsx · maksimum 5 MB
+              </span>
+            </div>
+          ) : (
+            <div className={`flex min-h-60 flex-col justify-between rounded-xl border p-5 ${
+              selection.error ? 'border-red-200 bg-red-50/40' : 'border-emerald-200 bg-emerald-50/30'
+            }`}>
+              <div>
+                <div className="flex items-start gap-3">
+                  {selection.error ? (
+                    <AlertCircle className="mt-0.5 shrink-0 text-red-500" size={24} />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={24} />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900">{selection.file.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {(selection.file.size / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB · Tahun {year}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    disabled={isUploading}
+                    title="Hapus file"
+                    className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <p className={`mt-5 text-xs leading-5 ${selection.error ? 'text-red-700' : 'text-emerald-700'}`}>
+                  {selection.error ?? 'File siap dikirim utuh ke backend tanpa diparsing di browser.'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onUpload}
+                disabled={Boolean(selection.error) || !Number.isInteger(year) || isUploading}
+                className="mt-6 inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-primary-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isUploading && <LoaderCircle size={16} className="animate-spin" />}
+                {isUploading ? 'Sedang mengunggah...' : 'Unggah ke Server'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <aside className="flex flex-col gap-5 border-t border-slate-200 bg-slate-50/60 p-5 lg:border-l lg:border-t-0">
+          <Select
+            label="Tahun data"
+            value={year}
+            disabled={isUploading}
+            onChange={(event) => onYearChange(Number(event.target.value))}
+            options={YEAR_OPTIONS}
+            controlClassName="bg-white"
+          />
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={publish}
+              disabled={isUploading}
+              onChange={(event) => onPublishChange(event.target.checked)}
+              className="mt-0.5 size-4 shrink-0 accent-cyan-700"
+            />
+            <span>
+              <span className="block font-semibold text-slate-700">Publikasikan kurva</span>
+              <span className="mt-1 block leading-5 text-slate-400">Aktifkan agar kurva langsung digunakan setelah validasi server.</span>
+            </span>
+          </label>
+
+          <div className="flex gap-2 border-y border-slate-200 py-3">
+            <Info size={14} className="mt-0.5 shrink-0 text-slate-500" />
+            <p className="text-xs leading-5 text-slate-500">
+              Kolom <strong>Elevasi</strong> dan <strong>Volume</strong> wajib. Kolom <strong>Area</strong> bersifat opsional.
+            </p>
           </div>
 
-          {selection.isParsing ? (
-            <p className="text-xs text-slate-500">Memvalidasi struktur dan isi workbook...</p>
-          ) : selection.error ? (
-            <p className="text-xs leading-5 text-red-700">{selection.error}</p>
-          ) : selection.data ? (
-            <p className="text-xs font-medium leading-5 text-emerald-700">{summary(selection.data)}</p>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={onUpload}
-            disabled={!selection.data || selection.isParsing || isUploading}
-            className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-primary-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          <a
+            href={TEMPLATE_URL}
+            download="Template_Upload_PLTA_Standar.xlsx"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-cyan-400 hover:text-brand-primary-strong"
           >
-            {isUploading && <LoaderCircle size={16} className="animate-spin" />}
-            {isUploading ? 'Sedang mengunggah...' : 'Unggah Data'}
-          </button>
-        </div>
-      )}
-
-      <div className="flex gap-2 rounded-[10px] border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-        <Info size={14} className="mt-0.5 shrink-0 text-slate-500" />
-        <p className="text-xs leading-5 text-slate-500">
-          Sheet <span className="font-mono font-semibold text-slate-700">{sheetName}</span>: {helper}
-        </p>
+            <Download size={14} />
+            Unduh Template
+          </a>
+        </aside>
       </div>
-
-      <a
-        href={TEMPLATE_URL}
-        download="Template_Upload_PLTA_Standar.xlsx"
-        className="inline-flex w-fit items-center gap-1.5 text-[13px] font-semibold text-brand-primary-strong hover:underline"
-      >
-        <Download size={14} />
-        Unduh template Excel standar
-      </a>
     </section>
   );
 }
@@ -202,86 +234,40 @@ function UploadCard<TData>({
 export default function InputGHW() {
   const { pltaId, plta } = useActivePLTA();
   const { addToast } = useNotificationStore();
-  const elevationMutation = useCreateElevationMutation();
-  const rtowMutation = useCreateRTOWMutation();
-  const [elevationSelection, setElevationSelection] = useState<SelectedWorkbook<ParsedElevationWorkbook> | null>(null);
-  const [rtowSelection, setRTOWSelection] = useState<SelectedWorkbook<ParsedRTOWWorkbook> | null>(null);
+  const elevationMutation = useUploadElevationExcelMutation();
+  const [selection, setSelection] = useState<SelectedWorkbook | null>(null);
+  const [year, setYear] = useState(CURRENT_YEAR);
+  const [publish, setPublish] = useState(false);
   const [uploadHistory, setUploadHistory] = useState<UploadHistoryItem[]>([]);
 
-  const selectElevationFile = (file: File) => {
-    setElevationSelection({ file, data: null, error: null, isParsing: true });
-    void parseElevationWorkbook(file)
-      .then((data) => setElevationSelection({ file, data, error: null, isParsing: false }))
-      .catch((error) => setElevationSelection({ file, data: null, error: errorMessage(error), isParsing: false }));
-  };
-
-  const selectRTOWFile = (file: File) => {
-    setRTOWSelection({ file, data: null, error: null, isParsing: true });
-    void parseRTOWWorkbook(file)
-      .then((data) => setRTOWSelection({ file, data, error: null, isParsing: false }))
-      .catch((error) => setRTOWSelection({ file, data: null, error: errorMessage(error), isParsing: false }));
-  };
-
-  const addHistory = (
-    filename: string,
-    dataType: UploadHistoryItem['dataType'],
-    period: number,
-    rows: number,
-  ) => {
-    const item: UploadHistoryItem = {
-      filename,
-      dataType,
-      period: String(period),
-      uploadedAt: formatDateWIB(new Date()),
-      rows,
-      status: 'Tervalidasi',
-    };
-    setUploadHistory((current) => [item, ...current].slice(0, 5));
+  const selectFile = (file: File) => {
+    setSelection({ file, error: validateWorkbook(file) });
   };
 
   const uploadElevation = async () => {
-    if (!elevationSelection?.data) return;
+    if (!selection || selection.error || !Number.isInteger(year)) return;
 
     try {
       const result = await elevationMutation.mutateAsync({
         pltaId,
-        ...elevationSelection.data,
+        year,
+        file: selection.file,
+        publish,
       });
-      addHistory(
-        elevationSelection.file.name,
-        'Volume Efektif',
-        result.year,
-        result.points.length,
-      );
+      const historyItem: UploadHistoryItem = {
+        filename: selection.file.name,
+        dataType: 'Volume Efektif',
+        period: String(result.year),
+        uploadedAt: formatDateWIB(new Date()),
+        rows: result.points.length,
+        status: 'Tervalidasi',
+      };
+      setUploadHistory((current) => [historyItem, ...current].slice(0, 5));
       addToast({
         type: 'success',
-        message: `${result.points.length} titik elevasi berhasil dikirim untuk PLTA ${plta.shortName}.`,
+        message: `${result.points.length} titik elevasi berhasil diterima backend untuk PLTA ${plta.shortName} (${result.status}).`,
       });
-      setElevationSelection(null);
-    } catch (error) {
-      addToast({ type: 'error', message: errorMessage(error) });
-    }
-  };
-
-  const uploadRTOW = async () => {
-    if (!rtowSelection?.data) return;
-
-    try {
-      const result = await rtowMutation.mutateAsync({
-        pltaId,
-        ...rtowSelection.data,
-      });
-      addHistory(
-        rtowSelection.file.name,
-        'RTOW',
-        result.tahun,
-        result.entries.length,
-      );
-      addToast({
-        type: 'success',
-        message: `${result.entries.length} entri RTOW berhasil dikirim untuk PLTA ${plta.shortName}.`,
-      });
-      setRTOWSelection(null);
+      setSelection(null);
     } catch (error) {
       addToast({ type: 'error', message: errorMessage(error) });
     }
@@ -290,49 +276,30 @@ export default function InputGHW() {
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
       <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div className="flex flex-col gap-1">
+        <div>
           <h1 className="page-title">Input GHW</h1>
-          <p className="page-description">
-            Unggah data elevasi/volume dan RTOW untuk PLTA {plta.shortName} melalui template Excel terstandar
-          </p>
+          <p className="page-description">Unggah data elevasi dan volume PLTA {plta.shortName}</p>
         </div>
-
         <PlantSwitcher page="input-ghw" />
       </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <UploadCard
-          title="Elevasi & Volume Waduk"
-          description="Kurva elevasi, volume, dan area waduk per tahun"
-          sheetName="ELEVATION_VOLUME"
-          helper={<>kolom <strong>elevation</strong>, <strong>volume</strong>, dan <strong>area</strong>. Area boleh kosong untuk Wonogiri.</>}
-          selection={elevationSelection}
-          isUploading={elevationMutation.isPending}
-          summary={(data) => `${data.points.length.toLocaleString('id-ID')} titik valid · tahun ${data.year} · elevasi ${data.minElevation}–${data.maxElevation}`}
-          onSelect={selectElevationFile}
-          onClear={() => setElevationSelection(null)}
-          onUpload={() => void uploadElevation()}
-        />
+      <UploadCard
+        selection={selection}
+        year={year}
+        publish={publish}
+        isUploading={elevationMutation.isPending}
+        onSelect={selectFile}
+        onClear={() => setSelection(null)}
+        onYearChange={setYear}
+        onPublishChange={setPublish}
+        onUpload={() => void uploadElevation()}
+      />
 
-        <UploadCard
-          title="RTOW"
-          description="Rencana Tahunan Operasi Waduk per tanggal"
-          sheetName="RTOW"
-          helper={<>kolom <strong>tanggal</strong> (YYYY-MM-DD) dan <strong>target_elevasi</strong>.</>}
-          selection={rtowSelection}
-          isUploading={rtowMutation.isPending}
-          summary={(data) => `${data.entries.length.toLocaleString('id-ID')} tanggal valid · tahun ${data.tahun}`}
-          onSelect={selectRTOWFile}
-          onClear={() => setRTOWSelection(null)}
-          onUpload={() => void uploadRTOW()}
-        />
-      </div>
-
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+      <section className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Upload berhasil pada sesi ini</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Hanya menampilkan data yang berhasil diunggah.</p>
+            <h2 className="text-sm font-semibold text-slate-900">Riwayat sesi</h2>
+            <p className="mt-0.5 text-xs text-slate-500">File yang sudah diterima dan divalidasi server.</p>
           </div>
           <span className="text-xs text-slate-400">Maks. 5 data</span>
         </div>
@@ -340,7 +307,7 @@ export default function InputGHW() {
         {uploadHistory.length === 0 ? (
           <div className="flex min-h-36 flex-col items-center justify-center px-6 text-center">
             <FileSpreadsheet size={28} className="text-slate-300" />
-            <p className="mt-3 text-sm font-semibold text-slate-600">Belum ada upload berhasil</p>
+            <p className="mt-3 text-sm font-semibold text-slate-600">Belum ada upload</p>
             <p className="mt-1 text-xs text-slate-400">Riwayat akan muncul setelah server menerima data.</p>
           </div>
         ) : (
@@ -365,9 +332,7 @@ export default function InputGHW() {
                     <td className="px-5 py-3.5 text-xs">{item.uploadedAt}</td>
                     <td className="px-5 py-3.5 text-right font-mono">{item.rows.toLocaleString('id-ID')}</td>
                     <td className="px-5 py-3.5 text-right">
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                        Berhasil
-                      </span>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Berhasil</span>
                     </td>
                   </tr>
                 ))}

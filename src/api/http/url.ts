@@ -1,6 +1,6 @@
 import { env } from '../../shared/lib/env';
 
-type QueryValue = string | number | boolean | null | undefined;
+export type QueryValue = string | number | boolean | null | undefined;
 
 function appendQuery(url: string, query?: Record<string, QueryValue>): string {
   if (!query) return url;
@@ -31,5 +31,3 @@ export function buildApiUrl(
   const baseUrl = env.apiBaseUrl === '/' ? '' : env.apiBaseUrl;
   return appendQuery(`${baseUrl}${normalizedPath}`, query);
 }
-
-export type { QueryValue };

@@ -2,7 +2,7 @@ import { ApiError } from './api-error';
 import { getAccessToken, refreshAuthSession } from './auth-session';
 import { buildApiUrl, type QueryValue } from './url';
 
-export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
+interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   body?: BodyInit | null;
   json?: unknown;
   query?: Record<string, QueryValue>;
@@ -26,7 +26,11 @@ async function parseResponseBody(response: Response): Promise<unknown> {
     }
   }
 
-  if (contentType.startsWith('image/') || contentType.includes('application/octet-stream')) {
+  if (
+    contentType.startsWith('image/')
+    || contentType.includes('application/octet-stream')
+    || contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  ) {
     return response.blob();
   }
 

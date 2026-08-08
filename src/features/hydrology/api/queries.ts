@@ -10,8 +10,11 @@ const HYDROLOGY_STALE_TIME = 60_000;
 
 export const hydrologyQueryKeys = {
   all: ['hydrology'] as const,
-  dashboard: (pltaId: string) => (
+  dashboardRoot: (pltaId: string) => (
     [...hydrologyQueryKeys.all, 'dashboard', pltaId] as const
+  ),
+  dashboard: (pltaId: string, date?: string) => (
+    [...hydrologyQueryKeys.dashboardRoot(pltaId), date ?? 'today'] as const
   ),
   monthly: (pltaId: string, year: number) => (
     [...hydrologyQueryKeys.all, 'monthly', pltaId, year] as const
@@ -26,10 +29,10 @@ export const hydrologyQueryKeys = {
   ),
 };
 
-export function usePLTAHydrologyDashboardQuery(pltaId: string) {
+export function usePLTAHydrologyDashboardQuery(pltaId: string, date?: string) {
   return useQuery({
-    queryKey: hydrologyQueryKeys.dashboard(pltaId),
-    queryFn: ({ signal }) => hydrologyRepository.getPLTADashboard(pltaId, { signal }),
+    queryKey: hydrologyQueryKeys.dashboard(pltaId, date),
+    queryFn: ({ signal }) => hydrologyRepository.getPLTADashboard(pltaId, date, { signal }),
     enabled: Boolean(pltaId),
     staleTime: HYDROLOGY_STALE_TIME,
     refetchOnWindowFocus: false,
@@ -76,7 +79,7 @@ export function useUpsertMonthlyHydrologyMutation() {
         queryKey: hydrologyQueryKeys.monthly(record.pltaId, record.year),
       });
       await queryClient.invalidateQueries({
-        queryKey: hydrologyQueryKeys.dashboard(record.pltaId),
+        queryKey: hydrologyQueryKeys.dashboardRoot(record.pltaId),
       });
     },
   });
@@ -94,7 +97,7 @@ export function useUploadMonthlyHydrologyImageMutation() {
         queryKey: hydrologyQueryKeys.monthly(record.pltaId, record.year),
       });
       await queryClient.invalidateQueries({
-        queryKey: hydrologyQueryKeys.dashboard(record.pltaId),
+        queryKey: hydrologyQueryKeys.dashboardRoot(record.pltaId),
       });
       await queryClient.invalidateQueries({
         queryKey: hydrologyQueryKeys.monthlyImage(

@@ -1,339 +1,383 @@
-import { useActivePLTA } from '../../features/plta/api/queries';
+import { useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  LoaderCircle,
+  RefreshCw,
+} from 'lucide-react';
+import {
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import Button from '../../components/atoms/Button';
+import Select from '../../components/atoms/Select';
+import Skeleton from '../../components/atoms/Skeleton';
+import {
+  FORECASTING_PLTA_ID,
+  FORECASTING_PLTA_NAME,
+  useForecastQuery,
+  useRunForecastMutation,
+  type ForecastHorizon,
+  type ForecastParameter,
+} from '../../features/forecasting';
+import { useTrendQuery } from '../../features/trends';
+import { useNotificationStore } from '../../store/notification-store';
 import { formatNumber } from '../../utils/formatters';
-import { AlertTriangle, ArrowUpRight } from 'lucide-react';
-import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
 
-export default function MachineLearning() {
-  const { plta } = useActivePLTA();
+interface ForecastChartDatum {
+  time: string;
+  actual?: number;
+  forecast?: number;
+  bandBase?: number;
+  bandRange?: number;
+  p10?: number;
+  p90?: number;
+}
 
-  // Derive dynamic forecasting stats from plta data to make it realistic
-  const currentInflow = plta.liveData.inflow;
-  const currentLevel = plta.liveData.waterLevel;
-  const targetLevel = plta.liveData.targetLevel || 231.00;
-  
-  // Calculate relative stats based on station capacity
-  const isLargePLTA = plta.capacity > 100;
-  const inflowPeak = isLargePLTA ? currentInflow * 1.67 : currentInflow * 1.45;
-  const totalSpillVolume = isLargePLTA ? 0.84 : 0.12;
-  const isSpillwayRisk = isLargePLTA; // Only large PLTA like Mrica has spillway warnings in this mock setup
+interface ForecastTooltipEntry {
+  payload?: ForecastChartDatum;
+}
 
-  // Daily forecast projection array (10 days: 4 actual, 6 forecast)
-  const forecastDays = [
-    { date: '15 Feb', value: isLargePLTA ? 96 : 42, isActual: true },
-    { date: '16 Feb', value: isLargePLTA ? 110 : 45, isActual: true },
-    { date: '17 Feb', value: isLargePLTA ? 124 : 48, isActual: true },
-    { date: 'Hari ini', value: Math.round(currentInflow), isActual: true, isToday: true },
-    { date: '19 Feb', value: isLargePLTA ? 168.2 : 62.4, isActual: false, level: 229.10, outflow: 148.0, spill: 0.0, status: 'Normal' },
-    { date: '20 Feb', value: isLargePLTA ? 196.5 : 68.2, isActual: false, level: 230.05, outflow: 162.0, spill: 0.0, status: 'Normal' },
-    { date: '21 Feb', value: Math.round(inflowPeak), isActual: false, level: 230.88, outflow: 168.0, spill: 24.6, status: 'Siaga', isWarning: true },
-    { date: '22 Feb', value: isLargePLTA ? 224.0 : 71.0, isActual: false, level: 230.92, outflow: 168.0, spill: 18.2, status: 'Siaga', isWarning: true },
-    { date: '23 Feb', value: isLargePLTA ? 172.0 : 54.0, isActual: false, level: 230.31, outflow: 165.0, spill: 0.0, status: 'Normal' },
-    { date: '24 Feb', value: isLargePLTA ? 140.0 : 47.0, isActual: false, level: 229.64, outflow: 156.0, spill: 0.0, status: 'Normal' },
-  ];
+interface ForecastTooltipProps {
+  active?: boolean;
+  payload?: ForecastTooltipEntry[];
+  unit: string;
+}
 
-  // Map values for the custom bar heights inside a 240px container
-  const maxValue = Math.max(...forecastDays.map(d => d.value));
-  const chartLimit = maxValue * 1.1; // scale height to give 10% top margin
-  const spillwayThreshold = isLargePLTA ? 210 : 80;
+const PARAMETER_OPTIONS: Array<{ value: ForecastParameter; label: string }> = [
+  { value: 'inflow', label: 'Inflow' },
+  { value: 'water_level', label: 'TMA Waduk' },
+];
+
+const HORIZON_OPTIONS: Array<{ value: ForecastHorizon; label: string }> = [
+  { value: 24, label: '24 Jam' },
+  { value: 168, label: '7 Hari' },
+];
+
+function normalizeUnit(unit: string | null | undefined): string {
+  if (!unit) return '';
+  return unit.replace('m3/', 'm³/');
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Jakarta',
+  }).format(date);
+}
+
+function formatAxisTime(value: string, horizon: ForecastHorizon): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('id-ID', horizon === 24
+    ? { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }
+    : { day: '2-digit', month: 'short', timeZone: 'Asia/Jakarta' }).format(date);
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return 'Data Forecasting belum dapat dimuat.';
+}
+
+function ForecastTooltip({ active, payload, unit }: ForecastTooltipProps) {
+  const point = payload?.find((entry) => entry.payload)?.payload;
+  if (!active || !point) return null;
+
+  const values = [
+    { label: 'Aktual', value: point.actual, className: 'text-slate-300' },
+    { label: 'Prediksi P50', value: point.forecast, className: 'text-cyan-300' },
+    { label: 'P10', value: point.p10, className: 'text-slate-400' },
+    { label: 'P90', value: point.p90, className: 'text-slate-400' },
+  ].filter((item) => item.value !== undefined);
 
   return (
-    <div className="flex flex-col flex-1 gap-6 animate-in fade-in duration-500">
-      {/* Page Header Section */}
-      <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div className="flex flex-col gap-1">
-          <h1 className="page-title">Forecasting Inflow</h1>
-          <p className="page-description">
-            Prediksi inflow waduk {plta.shortName} & kalkulasi potensi limpasan 7 hari ke depan
-          </p>
-        </div>
-        
-        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center">
-          <PlantSwitcher page="forecasting" />
-
-          {/* Date Selector Widget (No Shadow!) */}
-          <div className="flex h-11 shrink-0 items-center rounded-xl border border-[#e2e8f0] bg-white px-3.5 py-0">
-            <span className="text-[#334155] font-sans text-[13px] font-medium">
-              18 – 24 Feb 2025
+    <div className="min-w-48 rounded-xl border border-slate-700 bg-slate-950/95 p-3 text-white shadow-xl">
+      <p className="text-[11px] font-medium text-slate-300">{formatDateTime(point.time)}</p>
+      <div className="mt-2 space-y-1.5">
+        {values.map((item) => (
+          <div key={item.label} className="flex items-center justify-between gap-5 text-xs">
+            <span className="text-slate-400">{item.label}</span>
+            <span className={`font-semibold ${item.className}`}>
+              {formatNumber(item.value ?? 0, 2)} {unit}
             </span>
           </div>
-        </div>
+        ))}
       </div>
+    </div>
+  );
+}
 
-      {/* KPI Cards Row (No Shadow!) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Inflow Saat Ini */}
-        <div className="flex flex-col bg-white border border-[#e2e8f0] rounded-xl p-5 gap-1.5">
-          <div className="text-[#64748b] font-sans text-xs font-medium tracking-[0.6px] uppercase">
-            Inflow Saat Ini
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[#0f172a] font-sans text-[26px] font-bold">
-              {formatNumber(currentInflow, 1)}
-            </span>
-            <span className="text-[#94a3b8] font-sans text-[13px] font-medium">m³/s</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <ArrowUpRight size={14} className="text-[#059669]" />
-            <span className="text-[#059669] font-sans text-xs font-medium">+12% vs kemarin</span>
-          </div>
+export default function Forecasting() {
+  const pltaId = FORECASTING_PLTA_ID;
+  const addToast = useNotificationStore((state) => state.addToast);
+  const [parameter, setParameter] = useState<ForecastParameter>('inflow');
+  const [horizon, setHorizon] = useState<ForecastHorizon>(24);
+  const forecastInput = { pltaId, parameter, horizon };
+  const forecastQuery = useForecastQuery(forecastInput);
+  const runMutation = useRunForecastMutation();
+
+  const actualRange = useMemo(() => {
+    const to = new Date();
+    const from = new Date(to.getTime() - horizon * 60 * 60 * 1_000);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }, [horizon]);
+
+  const actualQuery = useTrendQuery({
+    pltaId,
+    parameter,
+    ...actualRange,
+    resolution: '1h',
+    aggregation: 'avg',
+  });
+
+  const series = forecastQuery.data;
+  const unit = normalizeUnit(series?.unit);
+  const points = series?.points ?? [];
+  const peakPoint = points.reduce((peak, point) => (
+    !peak || point.value > peak.value ? point : peak
+  ), points[0]);
+  const minimumPoint = points.reduce((minimum, point) => (
+    !minimum || point.value < minimum.value ? point : minimum
+  ), points[0]);
+  const average = points.length > 0
+    ? points.reduce((total, point) => total + point.value, 0) / points.length
+    : null;
+
+  const chartData = useMemo(() => {
+    const merged = new Map<string, ForecastChartDatum>();
+    for (const point of actualQuery.data?.points ?? []) {
+      merged.set(point.time, { time: point.time, actual: point.value });
+    }
+    for (const point of series?.points ?? []) {
+      const current = merged.get(point.time) ?? { time: point.time };
+      current.forecast = point.value;
+      if (point.valueP10 !== null && point.valueP90 !== null) {
+        current.bandBase = point.valueP10;
+        current.bandRange = Math.max(0, point.valueP90 - point.valueP10);
+        current.p10 = point.valueP10;
+        current.p90 = point.valueP90;
+      }
+      merged.set(point.time, current);
+    }
+    return [...merged.values()].sort(
+      (left, right) => new Date(left.time).getTime() - new Date(right.time).getTime(),
+    );
+  }, [actualQuery.data?.points, series?.points]);
+
+  const runForecast = async () => {
+    try {
+      const result = await runMutation.mutateAsync(forecastInput);
+      addToast({
+        type: 'success',
+        message: `Prediksi ulang masuk antrean backend (${result.status}).`,
+      });
+      window.setTimeout(() => void forecastQuery.refetch(), 5_000);
+    } catch (error) {
+      addToast({ type: 'error', message: errorMessage(error) });
+    }
+  };
+
+  return (
+    <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
+      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+        <div>
+          <h1 className="page-title">Forecasting</h1>
+          <p className="page-description">Prediksi ML terbaru untuk PLTA {FORECASTING_PLTA_NAME}</p>
         </div>
-
-        {/* Card 2: Prediksi Inflow Puncak */}
-        <div className="flex flex-col bg-white border border-[#e2e8f0] rounded-xl p-5 gap-1.5">
-          <div className="text-[#64748b] font-sans text-xs font-medium tracking-[0.6px] uppercase">
-            Prediksi Inflow Puncak
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[#0891b2] font-sans text-[26px] font-bold">
-              {formatNumber(inflowPeak, 1)}
-            </span>
-            <span className="text-[#94a3b8] font-sans text-[13px] font-medium">m³/s</span>
-          </div>
-          <div className="text-[#64748b] font-sans text-xs font-medium">
-            Kamis, 21 Feb · 03:00 WIB
-          </div>
-        </div>
-
-        {/* Card 3: Elevasi Waduk */}
-        <div className="flex flex-col bg-white border border-[#e2e8f0] rounded-xl p-5 gap-1.5">
-          <div className="text-[#64748b] font-sans text-xs font-medium tracking-[0.6px] uppercase">
-            Elevasi Waduk
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[#0f172a] font-sans text-[26px] font-bold">
-              {formatNumber(currentLevel, 2)}
-            </span>
-            <span className="text-[#94a3b8] font-sans text-[13px] font-medium">mdpl</span>
-          </div>
-          <div className="text-[#64748b] font-sans text-xs font-medium">
-            Ambang limpas {formatNumber(targetLevel, 2)} mdpl
-          </div>
-        </div>
-
-        {/* Card 4: Prediksi Limpasan */}
-        <div className={`flex flex-col border rounded-xl p-5 gap-1.5 ${
-          isSpillwayRisk ? 'bg-[#fffbeb] border-[#fde68a]' : 'bg-white border-[#e2e8f0]'
-        }`}>
-          <div className="flex items-center gap-1.5">
-            {isSpillwayRisk && <AlertTriangle size={13} className="text-[#b45309]" />}
-            <div className={`${isSpillwayRisk ? 'text-[#b45309]' : 'text-[#64748b]'} font-sans text-xs font-medium tracking-[0.6px] uppercase`}>
-              Prediksi Limpasan
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className={`${isSpillwayRisk ? 'text-[#b45309]' : 'text-[#0f172a]'} font-sans text-[26px] font-bold`}>
-              {formatNumber(totalSpillVolume, 2)}
-            </span>
-            <span className="text-[#94a3b8] font-sans text-[13px] font-medium">juta m³</span>
-          </div>
-          <div className="text-[#64748b] font-sans text-xs font-medium">
-            {isSpillwayRisk ? 'Potensi limpas 21–22 Feb' : 'Tidak ada potensi limpasan'}
-          </div>
-        </div>
-      </div>
-
-      {/* Inflow Chart Container (No Shadow!) */}
-      <div className="flex flex-col bg-white border border-[#e2e8f0] rounded-xl p-6 gap-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-col gap-0.5">
-            <h3 className="text-[#0f172a] font-sans text-base font-semibold">
-              Inflow Waduk {plta.shortName} — Aktual vs Prediksi
-            </h3>
-            <p className="text-[#64748b] font-sans text-xs leading-normal">
-              Rata-rata harian (m³/s), model update terakhir 06:00 WIB
-            </p>
-          </div>
-          
-          {/* Chart Legend */}
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 bg-[#94a3b8] rounded-[3px]"></div>
-              <span className="text-[#64748b] font-sans text-xs">Aktual</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 bg-[#06b6d4] rounded-[3px]"></div>
-              <span className="text-[#64748b] font-sans text-xs">Prediksi</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3.5 h-0 border-t-2 border-[#f59e0b]"></div>
-              <span className="text-[#64748b] font-sans text-xs">Ambang limpas</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Custom Rendered Bar Chart (Consistent with mockup & responsive) */}
-        <div className="flex relative w-full h-[260px] items-end border-b border-[#e2e8f0] px-2 py-0 gap-3 sm:gap-5 mt-4">
-          {/* Spillway Threshold Horizontal Line */}
-          <div 
-            className="flex absolute justify-end left-0 right-0 border-t-2 border-t-[#f59e0b] z-10 pointer-events-none"
-            style={{ bottom: `${(spillwayThreshold / chartLimit) * 100}%` }}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="secondary"
+            leftIcon={runMutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            disabled={runMutation.isPending}
+            onClick={() => void runForecast()}
+            className="h-11 whitespace-nowrap"
           >
-            <span className="mt-[-9px] bg-[#fffbeb] text-[#b45309] font-sans text-[11px] font-medium px-1.5 py-0.5 rounded border border-[#fde68a]">
-              {spillwayThreshold} m³/s
-            </span>
-          </div>
-
-          {/* Render Columns */}
-          {forecastDays.map((day, idx) => {
-            const heightPercent = (day.value / chartLimit) * 100;
-            return (
-              <div key={idx} className="flex h-full flex-col justify-end items-center flex-1 gap-2 z-0">
-                <div 
-                  className={`w-full max-w-[44px] rounded-t-md transition-all duration-500 ${
-                    day.isActual ? 'bg-[#94a3b8]' : 'bg-[#06b6d4]'
-                  } ${day.isWarning ? 'border-2 border-[#f59e0b]' : ''}`}
-                  style={{ height: `${heightPercent}%` }}
-                  title={`${day.date}: ${day.value} m³/s`}
-                />
-                <span className={`text-[11px] leading-normal font-sans text-center whitespace-nowrap ${
-                  day.isToday ? 'text-[#334155] font-semibold' : 'text-[#94a3b8]'
-                }`}>
-                  {day.date}
-                </span>
-              </div>
-            );
-          })}
+            Prediksi ulang
+          </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Bottom Grid: Spillway Calculation & Daily Forecast Table */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Side: Spillway Calculation Card */}
-        <div className="flex w-full lg:w-[380px] flex-col shrink-0 bg-white border border-[#e2e8f0] rounded-xl p-6 gap-4">
-          <div className="flex items-center gap-2">
-            <h4 className="text-[#0f172a] font-sans text-base font-semibold flex-1">
-              Kalkulasi Limpasan
-            </h4>
-            <div className={`flex items-center rounded-full px-2.5 py-1 gap-[5px] ${
-              isSpillwayRisk ? 'bg-[#fef3c7]' : 'bg-green-100'
-            }`}>
-              <AlertTriangle size={11} className={isSpillwayRisk ? 'text-[#b45309]' : 'text-green-700'} />
-              <span className={`font-sans text-[11px] font-bold uppercase ${
-                isSpillwayRisk ? 'text-[#b45309]' : 'text-green-700'
-              }`}>
-                {isSpillwayRisk ? 'Siaga' : 'Aman'}
-              </span>
-            </div>
-          </div>
+      <section className="flex flex-col gap-4 border-y border-slate-200 py-4 sm:flex-row sm:items-end">
+        <Select
+          label="Parameter"
+          value={parameter}
+          onChange={(event) => setParameter(event.target.value as ForecastParameter)}
+          options={PARAMETER_OPTIONS}
+          className="w-full sm:max-w-xs"
+        />
+        <Select
+          label="Horizon"
+          value={horizon}
+          onChange={(event) => setHorizon(Number(event.target.value) as ForecastHorizon)}
+          options={HORIZON_OPTIONS}
+          className="w-full sm:max-w-xs"
+        />
+      </section>
 
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[#64748b] font-medium">Elevasi terhadap ambang limpas</span>
-              <span className={`font-semibold ${isSpillwayRisk ? 'text-[#b45309]' : 'text-green-700'}`}>
-                {isSpillwayRisk ? '92%' : '84%'}
-              </span>
-            </div>
-            <div className="w-full h-2.5 bg-[#f1f5f9] rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full ${isSpillwayRisk ? 'bg-[#f59e0b]' : 'bg-green-500'}`}
-                style={{ width: isSpillwayRisk ? '92%' : '84%' }}
-              />
-            </div>
-            <div className="flex justify-between text-[#94a3b8] text-[11px]">
-              <span>224.50 mdpl</span>
-              <span>231.00 mdpl</span>
-            </div>
+      {forecastQuery.isLoading ? (
+        <div className="flex flex-col gap-5" role="status" aria-label="Memuat Forecasting">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => <Skeleton key={`forecast-kpi-${index}`} className="h-24 rounded-xl" />)}
           </div>
-
-          <div className="flex flex-col divide-y divide-[#f1f5f9]">
-            <div className="flex justify-between items-center py-2 text-[13px]">
-              <span className="text-[#64748b]">Elevasi saat ini</span>
-              <span className="text-[#0f172a] font-semibold">{formatNumber(currentLevel, 2)} mdpl</span>
-            </div>
-            <div className="flex justify-between items-center py-2 text-[13px]">
-              <span className="text-[#64748b]">Volume tampung efektif</span>
-              <span className="text-[#0f172a] font-semibold">{isLargePLTA ? '32.4' : '8.6'} juta m³</span>
-            </div>
-            <div className="flex justify-between items-center py-2 text-[13px]">
-              <span className="text-[#64748b]">Sisa kapasitas tampung</span>
-              <span className="text-[#0f172a] font-semibold">{isLargePLTA ? '6.1' : '1.8'} juta m³</span>
-            </div>
-            <div className="flex justify-between items-center py-2 text-[13px]">
-              <span className="text-[#64748b]">Inflow kumulatif 72 jam (prediksi)</span>
-              <span className="text-[#0f172a] font-semibold">{isLargePLTA ? '48.9' : '14.2'} juta m³</span>
-            </div>
-            <div className="flex justify-between items-center py-2 text-[13px]">
-              <span className="text-[#64748b]">Outflow turbin maks. 72 jam</span>
-              <span className="text-[#0f172a] font-semibold">{isLargePLTA ? '42.0' : '12.2'} juta m³</span>
-            </div>
-          </div>
-
-          <div className={`flex justify-between items-center border rounded-[10px] px-3.5 py-3 gap-3 ${
-            isSpillwayRisk ? 'bg-[#fffbeb] border-[#fde68a]' : 'bg-slate-50 border-slate-200'
-          }`}>
-            <span className={`${isSpillwayRisk ? 'text-[#92400e]' : 'text-slate-600'} font-sans text-[13px] font-medium`}>
-              Estimasi limpasan
-            </span>
-            <span className={`${isSpillwayRisk ? 'text-[#b45309]' : 'text-slate-800'} font-sans text-lg font-bold`}>
-              {formatNumber(totalSpillVolume, 2)} juta m³
-            </span>
-          </div>
-          <p className="text-[#94a3b8] font-sans text-[11px] leading-relaxed">
-            Limpasan = inflow kumulatif − (outflow turbin + sisa kapasitas). Nilai positif menandakan potensi pelimpahan melalui spillway.
-          </p>
+          <Skeleton className="h-[430px] rounded-xl" />
+          <span className="sr-only">Memuat Forecasting...</span>
         </div>
-
-        {/* Right Side: Daily Forecast Table */}
-        <div className="flex-1 flex flex-col bg-white border border-[#e2e8f0] rounded-xl p-6 gap-3">
-          <h4 className="text-[#0f172a] font-sans text-base font-semibold">
-            Detail Forecast Harian
-          </h4>
-          
-          <div className="flex flex-col w-full overflow-x-auto">
-            {/* Table Header */}
-            <div className="flex h-[38px] items-center bg-[#f8fafc] rounded-lg px-3.5 gap-2 min-w-[500px]">
-              <div className="w-20 text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px]">
-                Tanggal
-              </div>
-              <div className="flex-1 text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-                Inflow (m³/s)
-              </div>
-              <div className="flex-1 text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-                Elevasi (mdpl)
-              </div>
-              <div className="flex-1 text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-                Outflow (m³/s)
-              </div>
-              <div className="flex-1 text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-                Limpas (m³/s)
-              </div>
-              <div className="w-[92px] text-[#64748b] font-sans text-[11px] font-semibold uppercase tracking-[0.55px] text-right">
-                Status
-              </div>
+      ) : forecastQuery.isError ? (
+        <section className="flex min-h-80 flex-col items-center justify-center gap-3 rounded-xl border border-red-100 bg-white px-6 text-center">
+          <AlertTriangle size={22} className="text-red-500" />
+          <p className="text-sm font-semibold text-red-600">{errorMessage(forecastQuery.error)}</p>
+          <button type="button" onClick={() => void forecastQuery.refetch()} className="cursor-pointer text-xs font-semibold text-cyan-700 hover:text-cyan-800">Coba lagi</button>
+        </section>
+      ) : (
+        <>
+          {series?.accuracy && !series.accuracy.isPresentable && (
+            <div className="flex items-start gap-2 border-y border-amber-200 bg-amber-50/60 px-4 py-3 text-xs leading-5 text-amber-800">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              Akurasi prediksi saat ini belum layak disajikan sebagai acuan tunggal. Gunakan bersama data aktual dan pertimbangan operator.
             </div>
+          )}
 
-            {/* Table Rows */}
-            <div className="flex flex-col min-w-[500px] divide-y divide-[#f1f5f9]">
-              {forecastDays.filter(day => !day.isActual).map((day, idx) => (
-                <div key={idx} className="flex h-11 items-center px-3.5 gap-2 hover:bg-slate-50/50 transition-colors">
-                  <div className="w-20 text-[#334155] font-sans text-[13px] font-medium">
-                    {day.date}
-                  </div>
-                  <div className="flex-1 text-[#0f172a] font-sans text-[13px] font-semibold text-right">
-                    {formatNumber(day.value, 1)}
-                  </div>
-                  <div className="flex-1 text-[#334155] font-sans text-[13px] text-right">
-                    {day.level ? formatNumber(day.level, 2) : '-'}
-                  </div>
-                  <div className="flex-1 text-[#334155] font-sans text-[13px] text-right">
-                    {day.outflow ? formatNumber(day.outflow, 1) : '-'}
-                  </div>
-                  <div className={`flex-1 font-sans text-[13px] text-right ${day.spill && day.spill > 0 ? 'text-[#b45309] font-semibold' : 'text-[#94a3b8]'}`}>
-                    {day.spill ? formatNumber(day.spill, 1) : '0.0'}
-                  </div>
-                  <div className="w-[92px] flex justify-end">
-                    <span className={`font-sans text-[11px] font-semibold rounded-full px-2.5 py-[3px] ${
-                      day.status === 'Siaga' ? 'bg-[#fef3c7] text-[#b45309]' : 'bg-[#d1fae5] text-[#047857]'
-                    }`}>
-                      {day.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            {[
+              {
+                label: 'Prediksi awal',
+                value: points[0] ? formatNumber(points[0].value, 2) : 'N/A',
+                detail: points[0] ? formatDateTime(points[0].time) : 'Belum ada data',
+              },
+              {
+                label: 'Prediksi maksimum',
+                value: peakPoint ? formatNumber(peakPoint.value, 2) : 'N/A',
+                detail: peakPoint ? formatDateTime(peakPoint.time) : 'Belum ada data',
+              },
+              {
+                label: 'Prediksi minimum',
+                value: minimumPoint ? formatNumber(minimumPoint.value, 2) : 'N/A',
+                detail: minimumPoint ? formatDateTime(minimumPoint.time) : 'Belum ada data',
+              },
+              {
+                label: 'Rata-rata',
+                value: average === null ? 'N/A' : formatNumber(average, 2),
+                detail: `${points.length} titik · horizon ${horizon} jam`,
+              },
+            ].map((item) => (
+              <article key={item.label} className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">{item.label}</p>
+                <p className="mt-2 text-xl font-semibold text-slate-900">
+                  {item.value}
+                  {item.value !== 'N/A' && <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-400">{item.detail}</p>
+              </article>
+            ))}
           </div>
-        </div>
-      </div>
+
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-start">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">{series?.label ?? PARAMETER_OPTIONS.find((item) => item.value === parameter)?.label}</h2>
+                <p className="mt-1 text-xs text-slate-500">Aktual historis dan prediksi P50 dari model terbaru.</p>
+              </div>
+              <div className="text-left text-[11px] text-slate-400 sm:text-right">
+                <p className="font-medium text-slate-500">{series?.modelName}</p>
+                <p className="mt-1">Dibuat {formatDateTime(series?.generatedAt)}</p>
+              </div>
+            </div>
+
+            <div className="px-2 pb-3 pt-5 sm:px-5">
+              <ResponsiveContainer width="100%" height={360}>
+                <ComposedChart data={chartData} margin={{ top: 12, right: 18, bottom: 10, left: 0 }} accessibilityLayer>
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 6" />
+                  <XAxis
+                    dataKey="time"
+                    axisLine={false}
+                    tickLine={false}
+                    minTickGap={42}
+                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    tickFormatter={(value: string) => formatAxisTime(value, horizon)}
+                    dy={9}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    width={58}
+                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    tickFormatter={(value: number) => formatNumber(value, Math.abs(value) >= 100 ? 0 : 1)}
+                  />
+                  <Tooltip content={<ForecastTooltip unit={unit} />} />
+                  <Area type="monotone" dataKey="bandBase" stackId="confidence" stroke="none" fill="transparent" isAnimationActive={false} />
+                  <Area type="monotone" dataKey="bandRange" stackId="confidence" stroke="none" fill="#67e8f9" fillOpacity={0.28} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="actual" name="Aktual" stroke="#64748b" strokeWidth={2.25} dot={false} connectNulls={false} />
+                  <Line type="monotone" dataKey="forecast" name="Prediksi P50" stroke="#0891b2" strokeWidth={2.75} dot={false} activeDot={{ r: 5 }} connectNulls={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 px-2 pt-3 text-[11px] text-slate-500">
+                <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-slate-500" />Aktual</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-cyan-700" />Prediksi P50</span>
+                {points.some((point) => point.valueP10 !== null && point.valueP90 !== null) && (
+                  <span className="inline-flex items-center gap-1.5"><span className="size-3 bg-cyan-200/70" />Rentang P10–P90</span>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+            <section className="rounded-xl border border-slate-200 bg-white p-5">
+              <div className="flex items-center gap-2">
+                {series?.accuracy?.isPresentable ? (
+                  <CheckCircle2 size={18} className="text-emerald-600" />
+                ) : (
+                  <AlertTriangle size={18} className="text-amber-600" />
+                )}
+                <h2 className="text-sm font-semibold text-slate-900">Kelayakan Prediksi</h2>
+              </div>
+              <div className="mt-4 divide-y divide-slate-100 text-sm">
+                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Status</span><span className={`font-semibold ${series?.accuracy?.isPresentable ? 'text-emerald-600' : 'text-amber-600'}`}>{series?.accuracy?.isPresentable ? 'Layak' : 'Perlu kehati-hatian'}</span></div>
+                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Skill</span><span className="font-semibold text-slate-800">{series?.accuracy?.skill === null || series?.accuracy?.skill === undefined ? 'N/A' : formatNumber(series.accuracy.skill, 2)}</span></div>
+                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Sampel</span><span className="font-semibold text-slate-800">{series?.accuracy?.sampleCount ?? 0}</span></div>
+                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Jendela</span><span className="font-semibold text-slate-800">{series?.accuracy?.windowDays ?? 0} hari</span></div>
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-5 py-4">
+                <h2 className="text-sm font-semibold text-slate-900">Detail Prediksi</h2>
+                <p className="mt-1 text-xs text-slate-500">P50 adalah nilai utama; P10–P90 ditampilkan bila model menyediakannya.</p>
+              </div>
+              <div className="max-h-[420px] overflow-auto">
+                <table className="w-full min-w-[620px] border-collapse text-left">
+                  <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-[0.06em] text-slate-500">
+                    <tr><th className="px-5 py-3 font-semibold">Waktu</th><th className="px-4 py-3 text-right font-semibold">P50</th><th className="px-4 py-3 text-right font-semibold">P10</th><th className="px-5 py-3 text-right font-semibold">P90</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {points.map((point) => (
+                      <tr key={point.time} className="text-sm text-slate-600 hover:bg-slate-50/70">
+                        <td className="px-5 py-3">{formatDateTime(point.time)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-800">{formatNumber(point.value, 2)} {unit}</td>
+                        <td className="px-4 py-3 text-right">{point.valueP10 === null ? '—' : `${formatNumber(point.valueP10, 2)} ${unit}`}</td>
+                        <td className="px-5 py-3 text-right">{point.valueP90 === null ? '—' : `${formatNumber(point.valueP90, 2)} ${unit}`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
     </div>
   );
 }

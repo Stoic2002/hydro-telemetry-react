@@ -2,6 +2,7 @@ import { Suspense, useCallback, useState } from 'react';
 import {
   Outlet,
   NavLink,
+  useLocation,
   useNavigate,
   useParams,
 } from 'react-router-dom';
@@ -15,10 +16,12 @@ import {
   getUnscopedDashboardPath,
   isValidPLTAId,
 } from '../features/plta/routing';
+import { FORECASTING_PLTA_ID } from '../features/forecasting';
 import { usePlantCatalogQuery } from '../features/plta/api/queries';
 import { useAuthStore } from '../store/auth-store';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
-import AppShellSkeleton from '../components/skeletons/AppShellSkeleton';
+import DashboardPageSkeleton from '../components/skeletons/DashboardPageSkeleton';
+import { getDashboardSkeletonVariant } from '../components/skeletons/dashboardSkeletonVariant';
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -32,6 +35,8 @@ export default function DashboardLayout() {
     ? pltaId
     : (pltaList.find((plant) => plant.isActive) ?? pltaList[0])?.id;
   const navigate = useNavigate();
+  const location = useLocation();
+  const loadingVariant = getDashboardSkeletonVariant(location.pathname);
 
   const getSelectedDashboardPath = (page: Parameters<typeof getPLTADashboardPath>[1]) => (
     selectedPLTAId
@@ -130,7 +135,7 @@ export default function DashboardLayout() {
 
           {/* Forecasting (Machine Learning) */}
           <NavLink
-            to={getSelectedDashboardPath('forecasting')}
+            to={getPLTADashboardPath(FORECASTING_PLTA_ID, 'forecasting')}
             className={({ isActive }) =>
               `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
                 isActive
@@ -286,8 +291,8 @@ export default function DashboardLayout() {
         }`}
       >
         {/* Page Content */}
-        <main className="flex-1 p-6 w-full max-w-[1440px] mx-auto">
-          <Suspense fallback={<AppShellSkeleton embedded />}>
+        <main className="mx-auto w-full max-w-[1440px] flex-1 p-4 lg:p-5 2xl:p-6">
+          <Suspense fallback={<DashboardPageSkeleton variant={loadingVariant} />}>
             <Outlet />
           </Suspense>
         </main>

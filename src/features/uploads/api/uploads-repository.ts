@@ -1,11 +1,8 @@
 import type {
-  CreateElevationInput,
-  CreateRTOWInput,
   ElevationUploadResult,
-  RTOWUploadResult,
+  UploadElevationExcelInput,
 } from '../model';
 
 export interface UploadsRepository {
-  createElevation(input: CreateElevationInput): Promise<ElevationUploadResult>;
-  createRTOW(input: CreateRTOWInput): Promise<RTOWUploadResult>;
+  uploadElevationExcel(input: UploadElevationExcelInput): Promise<ElevationUploadResult>;
 }

@@ -1,10 +1,26 @@
 import type { Plant } from './model';
 import { plantMatchesIdentity } from './presentation';
 
+export type HydrologyZone = 'upstream' | 'dam' | 'downstream';
+
+export interface DamImageryExtent {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export interface DamImageryAnchor {
+  latitude: number;
+  longitude: number;
+}
+
 export interface DamImagery {
   damName: string;
   location: string;
   acquisitionLabel: string;
+  extent: DamImageryExtent;
+  anchors: Record<HydrologyZone, DamImageryAnchor>;
   imageUrl: string;
   mapUrl: string;
   alt: string;
@@ -22,13 +38,17 @@ const WORLD_IMAGERY_SERVICE_URL =
   'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer';
 const WORLD_IMAGERY_ATTRIBUTION =
   'Esri, Vantor, Earthstar Geographics, dan GIS User Community';
+export const DAM_IMAGERY_VIEWBOX = {
+  width: 1600,
+  height: 1000,
+} as const;
 
-function worldImageryUrl(bbox: [number, number, number, number]): string {
+function worldImageryUrl(extent: DamImageryExtent): string {
   const params = new URLSearchParams({
-    bbox: bbox.join(','),
+    bbox: [extent.west, extent.south, extent.east, extent.north].join(','),
     bboxSR: '4326',
     imageSR: '4326',
-    size: '1600,1000',
+    size: `${DAM_IMAGERY_VIEWBOX.width},${DAM_IMAGERY_VIEWBOX.height}`,
     format: 'jpg',
     f: 'image',
   });
@@ -48,13 +68,33 @@ function satelliteMapUrl(latitude: number, longitude: number): string {
   return `https://www.google.com/maps/@?${params.toString()}`;
 }
 
+const SOEDIRMAN_EXTENT: DamImageryExtent = {
+  west: 109.59817,
+  south: -7.397,
+  east: 109.61353,
+  north: -7.3874,
+};
+
+const WONOGIRI_EXTENT: DamImageryExtent = {
+  west: 110.9137,
+  south: -7.846,
+  east: 110.9393,
+  north: -7.83,
+};
+
 const DAM_IMAGERY: DamImageryDefinition[] = [
   {
     identities: ['soedirman', 'mrica', 'pbs'],
     damName: 'Bendungan Panglima Besar Soedirman (Mrica)',
     location: 'Banjarnegara, Jawa Tengah',
     acquisitionLabel: 'Akuisisi 23 Juli 2025 · resolusi 0,34 m',
-    imageUrl: worldImageryUrl([109.5985, -7.397, 109.6132, -7.3874]),
+    extent: SOEDIRMAN_EXTENT,
+    anchors: {
+      upstream: { latitude: -7.3898, longitude: 109.60969 },
+      dam: { latitude: -7.392557, longitude: 109.605829 },
+      downstream: { latitude: -7.3946, longitude: 109.603392 },
+    },
+    imageUrl: worldImageryUrl(SOEDIRMAN_EXTENT),
     mapUrl: satelliteMapUrl(-7.392557, 109.605829),
     alt: 'Citra satelit Bendungan Panglima Besar Soedirman atau Waduk Mrica di Banjarnegara',
     attribution: WORLD_IMAGERY_ATTRIBUTION,
@@ -65,7 +105,13 @@ const DAM_IMAGERY: DamImageryDefinition[] = [
     damName: 'Bendungan Wonogiri (Gajah Mungkur)',
     location: 'Wonogiri, Jawa Tengah',
     acquisitionLabel: 'Akuisisi 22 Juli 2025 · resolusi 0,34 m',
-    imageUrl: worldImageryUrl([110.917, -7.846, 110.936, -7.83]),
+    extent: WONOGIRI_EXTENT,
+    anchors: {
+      upstream: { latitude: -7.84184, longitude: 110.930084 },
+      dam: { latitude: -7.838139, longitude: 110.926581 },
+      downstream: { latitude: -7.8332, longitude: 110.926244 },
+    },
+    imageUrl: worldImageryUrl(WONOGIRI_EXTENT),
     mapUrl: satelliteMapUrl(-7.8381, 110.9266),
     alt: 'Citra satelit Bendungan Wonogiri atau Waduk Gajah Mungkur di Wonogiri',
     attribution: WORLD_IMAGERY_ATTRIBUTION,
@@ -86,6 +132,8 @@ export function getDamImagery(
     damName: match.damName,
     location: match.location,
     acquisitionLabel: match.acquisitionLabel,
+    extent: match.extent,
+    anchors: match.anchors,
     imageUrl: match.imageUrl,
     mapUrl: match.mapUrl,
     alt: match.alt,

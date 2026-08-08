@@ -1,11 +1,9 @@
-export { ApiError, type ApiErrorOptions } from './api-error';
-export { apiRequest, type ApiRequestOptions } from './fetcher';
+export { ApiError } from './api-error';
+export { apiRequest } from './fetcher';
+export { createApiResponseParser } from './response-parser';
 export {
-  clearAuthTokens,
   getAccessToken,
-  getAuthTokens,
   refreshAuthSession,
-  setAuthTokens,
   subscribeToAuthSession,
   type AuthTokens,
 } from './auth-session';

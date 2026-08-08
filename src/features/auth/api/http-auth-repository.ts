@@ -1,4 +1,4 @@
-import { ApiError, apiRequest, type AuthTokens } from '../../../api/http';
+import { apiRequest, createApiResponseParser, type AuthTokens } from '../../../api/http';
 import type { AuthUserResponse } from '../model';
 import type { AuthRepository, LoginCredentials } from './auth-repository';
 import {
@@ -7,21 +7,7 @@ import {
   loginCredentialsSchema,
 } from './schemas';
 
-function parseResponse<T>(
-  payload: unknown,
-  schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: { flatten: () => unknown } } },
-  endpoint: string,
-): T {
-  const result = schema.safeParse(payload);
-  if (result.success) return result.data;
-
-  throw new ApiError('Respons server tidak sesuai kontrak API', {
-    status: 502,
-    statusText: 'Invalid API Response',
-    details: result.error.flatten(),
-    url: endpoint,
-  });
-}
+const parseResponse = createApiResponseParser('Respons server tidak sesuai kontrak API');
 
 export const httpAuthRepository: AuthRepository = {
   async login(credentials: LoginCredentials): Promise<AuthTokens> {

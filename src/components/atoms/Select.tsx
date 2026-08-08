@@ -12,7 +12,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
-export interface SelectOption {
+interface SelectOption {
   value: string | number;
   label: string;
   disabled?: boolean;

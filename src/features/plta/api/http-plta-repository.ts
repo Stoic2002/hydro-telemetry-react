@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../api/http';
+import { ApiError, apiRequest, createApiResponseParser } from '../../../api/http';
 import type {
   ListParams,
   PaginatedResult,
@@ -17,27 +17,9 @@ import {
   type ApiRiverBasin,
 } from './schemas';
 
-interface SafeParseSchema<T> {
-  safeParse(value: unknown):
-    | { success: true; data: T }
-    | { success: false; error: { flatten: () => unknown } };
-}
-
-function parseResponse<T>(
-  payload: unknown,
-  schema: SafeParseSchema<T>,
-  endpoint: string,
-): T {
-  const result = schema.safeParse(payload);
-  if (result.success) return result.data;
-
-  throw new ApiError('Respons server tidak sesuai kontrak data Plants', {
-    status: 502,
-    statusText: 'Invalid API Response',
-    details: result.error.flatten(),
-    url: endpoint,
-  });
-}
+const parseResponse = createApiResponseParser(
+  'Respons server tidak sesuai kontrak data Plants',
+);
 
 function mapRiverBasin(riverBasin: ApiRiverBasin): RiverBasin {
   return {
@@ -118,18 +100,6 @@ export const httpPltaRepository: PLTARepository = {
     const result = parseResponse(payload, paginatedRiverBasinsSchema, endpoint);
 
     return mapPage(result, mapRiverBasin);
-  },
-
-  async listByRiverBasin(wsId, params) {
-    const endpoint = `/api/v1/wilayah-sungai/${encodeURIComponent(wsId)}/plta`;
-    const payload = await apiRequest<unknown>(endpoint, {
-      method: 'GET',
-      cache: 'no-store',
-      query: listQuery(params),
-    });
-    const result = parseResponse(payload, paginatedPlantsSchema, endpoint);
-
-    return mapPage(result, mapPlant);
   },
 
   async list(params) {

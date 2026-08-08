@@ -3,53 +3,35 @@ import { z } from 'zod';
 const nullableNumberSchema = z.number().nullable().optional().default(null);
 const nullableStringSchema = z.string().nullable().optional().default(null);
 
-const apiDailyUpstreamSchema = z.object({
-  target_tma: nullableNumberSchema,
-  volume_target: nullableNumberSchema,
-  volume_waduk: nullableNumberSchema,
-  batas_tma_limpas: nullableNumberSchema,
-  batas_tma_mol: nullableNumberSchema,
-  tma_waduk: nullableNumberSchema,
-  tma_waduk_time: nullableStringSchema,
-  inflow: nullableNumberSchema,
-  curah_hujan_hulu: nullableNumberSchema,
-  turbidity_hulu: nullableNumberSchema,
-  volume_efektif_thd_target: nullableNumberSchema,
-  volume_efektif_thd_mol: nullableNumberSchema,
-  ketersediaan_energi_thd_target_mwh: nullableNumberSchema,
-  ketersediaan_energi_thd_mol_mwh: nullableNumberSchema,
-  service_hour_full_load_jam: nullableNumberSchema,
+const apiDashboardStationMetricSchema = z.object({
+  station: z.string(),
+  label: z.string(),
+  value: nullableNumberSchema,
+  time: nullableStringSchema,
 });
 
-const apiDailyDamSchema = z.object({
-  rencana_debit_turbin: nullableNumberSchema,
-  rencana_debit_spillway: nullableNumberSchema,
-  rencana_debit_hjv: nullableNumberSchema,
-  debit_turbin_t1: nullableNumberSchema,
-  debit_turbin_t2: nullableNumberSchema,
-  debit_spillway: nullableNumberSchema,
-  debit_hjv: nullableNumberSchema,
-  delta_head_cm: nullableNumberSchema,
+const apiDashboardMetricSchema = z.object({
+  value: nullableNumberSchema,
+  unit: nullableStringSchema,
+  label: z.string(),
+  time: nullableStringSchema,
+  source: z.enum(['measured', 'derived', 'plan', 'constant']),
+  stations: z.array(apiDashboardStationMetricSchema).nullable().optional().default(null),
 });
 
-const apiDailyDownstreamSchema = z.object({
-  tma_tailrace: nullableNumberSchema,
-  head_m: nullableNumberSchema,
-  eff_turbin_1: nullableNumberSchema,
-  eff_turbin_2: nullableNumberSchema,
-  turbidity_hilir: nullableNumberSchema,
-});
+const apiDashboardMetricGroupSchema = z.record(z.string(), apiDashboardMetricSchema);
 
 const apiDailyHydrologySchema = z.object({
   tanggal: z.string(),
-  hulu: apiDailyUpstreamSchema,
-  dam: apiDailyDamSchema,
-  hilir: apiDailyDownstreamSchema,
+  constants: z.record(z.string(), z.unknown()).nullable().optional().default(null),
+  hulu: apiDashboardMetricGroupSchema,
+  dam: apiDashboardMetricGroupSchema,
+  hilir: apiDashboardMetricGroupSchema,
   pending_formulas: z.array(z.string()).optional().default([]),
 });
 
 export const apiMonthlyHydrologySchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().uuid().nullable(),
   plta_id: z.string().uuid(),
   tahun: z.number(),
   bulan: z.number().min(1).max(12),
@@ -70,7 +52,7 @@ export const apiPLTAHydrologyDashboardSchema = z.object({
     id: z.string().uuid(),
     code: z.string(),
     name: z.string(),
-    constants: z.unknown().nullable().optional(),
+    constants: z.record(z.string(), z.unknown()).nullable().optional().default(null),
   }),
   monthly: apiMonthlyHydrologySchema.nullable(),
   daily: apiDailyHydrologySchema.nullable(),

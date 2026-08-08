@@ -20,7 +20,8 @@ import {
 import { getPLTAErrorMessage } from '../features/plta/error';
 import { useAuthStore } from '../store/auth-store';
 import AppShellSkeleton from '../components/skeletons/AppShellSkeleton';
-import Skeleton from '../components/atoms/Skeleton';
+import DashboardPageSkeleton from '../components/skeletons/DashboardPageSkeleton';
+import { getDashboardSkeletonVariant } from '../components/skeletons/dashboardSkeletonVariant';
 import { Building2, RefreshCw } from 'lucide-react';
 
 const DashboardLayout = lazy(() => import('../layouts/DashboardLayout'));
@@ -31,10 +32,7 @@ const Forecasting = lazy(() => import('../pages/dashboard/Forecasting'));
 const Trends = lazy(() => import('../pages/dashboard/Trends'));
 const Laporan = lazy(() => import('../pages/dashboard/Laporan'));
 const InputGHW = lazy(() => import('../pages/dashboard/InputGHW'));
-const DataInputOperator = lazy(() => import('../pages/dashboard/DataInputOperator'));
 const UserManagement = lazy(() => import('../pages/dashboard/UserManagement'));
-const UserCreate = lazy(() => import('../pages/dashboard/UserCreate'));
-const UserEdit = lazy(() => import('../pages/dashboard/UserEdit'));
 const AccountSettings = lazy(() => import('../pages/dashboard/AccountSettings'));
 const ResourceCatalog = lazy(() => import('../pages/dashboard/ResourceCatalog'));
 
@@ -115,21 +113,8 @@ function LegacyDashboardRedirect({ page }: { page: PLTADashboardPage }) {
 }
 
 function PlantRouteLoading() {
-  return (
-    <div role="status" aria-label="Memuat data PLTA" className="flex flex-col gap-5 py-1">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-6 w-48 rounded-lg" />
-        <Skeleton className="h-3 w-80 max-w-full rounded-md" />
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }, (_, index) => (
-          <Skeleton key={`plant-route-card-${index}`} className="h-24 rounded-2xl" />
-        ))}
-      </div>
-      <Skeleton className="h-[360px] rounded-2xl" />
-      <span className="sr-only">Memuat data PLTA...</span>
-    </div>
-  );
+  const { pathname } = useLocation();
+  return <DashboardPageSkeleton variant={getDashboardSkeletonVariant(pathname)} />;
 }
 
 function PlantRouteError({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -240,29 +225,12 @@ export default function AppRouter() {
               <Route path="trends" element={<Trends />} />
               <Route path="laporan" element={<Laporan />} />
               <Route path="input-ghw" element={<InputGHW />} />
-              <Route path="data-input-operator" element={<DataInputOperator />} />
               <Route path="account" element={<AccountSettings />} />
               <Route
                 path="user-management"
                 element={(
                   <AdminOnlyRoute>
                     <UserManagement />
-                  </AdminOnlyRoute>
-                )}
-              />
-              <Route
-                path="user-management/new"
-                element={(
-                  <AdminOnlyRoute>
-                    <UserCreate />
-                  </AdminOnlyRoute>
-                )}
-              />
-              <Route
-                path="user-management/:userId/edit"
-                element={(
-                  <AdminOnlyRoute>
-                    <UserEdit />
                   </AdminOnlyRoute>
                 )}
               />
@@ -273,7 +241,6 @@ export default function AppRouter() {
             <Route path="trends" element={<LegacyDashboardRedirect page="trends" />} />
             <Route path="laporan" element={<LegacyDashboardRedirect page="laporan" />} />
             <Route path="input-ghw" element={<LegacyDashboardRedirect page="input-ghw" />} />
-            <Route path="data-input-operator" element={<LegacyDashboardRedirect page="data-input-operator" />} />
             <Route path="user-management" element={<LegacyDashboardRedirect page="user-management" />} />
             <Route path="account" element={<LegacyDashboardRedirect page="account" />} />
           </Route>

@@ -235,13 +235,3 @@ export const pltaData: PLTAInfo[] = [
     ],
   },
 ];
-
-export function getPLTAById(id: string): PLTAInfo | undefined {
-  return pltaData.find((p) => p.id === id);
-}
-
-export function getPLTAStatusSummary(): Record<string, number> {
-  const summary: Record<string, number> = { Aman: 0, 'Siaga 1': 0, 'Siaga 2': 0, Kritis: 0, Offline: 0 };
-  pltaData.forEach((p) => { summary[p.status] = (summary[p.status] || 0) + 1; });
-  return summary;
-}

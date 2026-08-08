@@ -1,21 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import {
   AlertTriangle,
-  ExternalLink,
+  ChevronDown,
+  ChevronUp,
   ImageOff,
   Info,
-  LoaderCircle,
-  MapPin,
   PencilLine,
   RefreshCw,
   Upload,
 } from 'lucide-react';
 import Button from '../../components/atoms/Button';
+import Skeleton from '../../components/atoms/Skeleton';
 import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
 import {
   useMonitoringStream,
   usePLTALatestQuery,
-  type MonitoringConnectionStatus,
   type MonitoringParameter,
   type MonitoringParameterLatest,
 } from '../../features/monitoring';
@@ -23,7 +29,11 @@ import {
   useActivePLTA,
   usePLTATagsQuery,
 } from '../../features/plta/api/queries';
-import { getDamImagery } from '../../features/plta/dam-imagery';
+import {
+  getDamImagery,
+  type HydrologyZone,
+} from '../../features/plta/dam-imagery';
+import SatelliteHydrologyMap from '../../features/plta/components/SatelliteHydrologyMap';
 import type { Plant, PlantTag } from '../../features/plta/model';
 import {
   useMonthlyHydrologyImageQuery,
@@ -34,6 +44,8 @@ import { getHydrologyErrorMessage } from '../../features/hydrology/error';
 import MonthlyHydrologySheet from '../../features/hydrology/components/MonthlyHydrologySheet';
 import HydrologyImageUploadSheet from '../../features/hydrology/components/HydrologyImageUploadSheet';
 import type {
+  DashboardMetric,
+  DashboardMetricGroup,
   MonthlyHydrology,
   MonthlyHydrologyImageKind,
   NullableMetric,
@@ -64,6 +76,7 @@ interface MetricRow {
   unit?: string;
   source: string;
   sourceType: MetricSource;
+  hasData?: boolean;
   uploadTarget?: DailyTelemetryUploadTarget;
 }
 
@@ -73,8 +86,11 @@ interface MetricSection {
 }
 
 interface ZoneCardProps {
+  cardRef?: RefObject<HTMLElement | null>;
+  isHighlighted?: boolean;
+  onHighlightChange?: (isHighlighted: boolean) => void;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   sections: MetricSection[];
   onUpload?: (target: DailyTelemetryUploadTarget) => void;
 }
@@ -102,19 +118,6 @@ function formatHydrologyDate(value: string): string {
     month: 'long',
     year: 'numeric',
   }).format(new Date(`${value}T00:00:00`));
-}
-
-function formatHydrologyTime(value: string | null): string | null {
-  if (!value) return null;
-
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Jakarta',
-    timeZoneName: 'short',
-  }).format(new Date(value));
 }
 
 function monitoringTimestamp(reading: MonitoringParameterLatest): number {
@@ -155,61 +158,99 @@ function latestMonitoringParameter(
   );
 }
 
-function monitoringSource(
-  reading: MonitoringParameterLatest | undefined,
-  status: MonitoringConnectionStatus,
-): string {
-  if (!reading) return 'Dashboard API';
-
-  const source = status === 'open' ? 'WebSocket' : 'Monitoring terakhir';
-  const time = formatHydrologyTime(reading.time);
-  return [source, reading.station || null, time].filter(Boolean).join(' · ');
+function monitoringSource(reading: MonitoringParameterLatest | undefined): string {
+  return reading ? 'Realtime' : 'Belum tersedia';
 }
 
-function sumMetrics(values: NullableMetric[]): NullableMetric {
-  const availableValues = values.filter((value): value is number => value !== null);
-  if (availableValues.length === 0) return null;
-  return availableValues.reduce((total, value) => total + value, 0);
-}
+const dashboardSourceType: Record<DashboardMetric['source'], Exclude<MetricSource, 'unavailable'>> = {
+  measured: 'api',
+  derived: 'formula',
+  plan: 'input',
+  constant: 'constant',
+};
 
-function metricRow(
-  label: string,
-  value: NullableMetric,
-  unit: string,
-  source: string,
-  sourceType: Exclude<MetricSource, 'unavailable'>,
-  maximumFractionDigits = 2,
-  isLoading = false,
+const dashboardSourceLabel: Record<DashboardMetric['source'], string> = {
+  measured: 'Realtime',
+  derived: 'Formulasi',
+  plan: 'Rencana',
+  constant: 'Konstanta',
+};
+
+function dashboardMetricRow(
+  key: string,
+  metric: DashboardMetric | undefined,
+  isLoading: boolean,
   uploadTarget?: DailyTelemetryUploadTarget,
+  override?: { value: NullableMetric; source: string },
 ): MetricRow {
   if (isLoading) {
     return {
-      label,
+      label: metric?.label ?? key,
       value: 'Memuat…',
-      source: 'Mengambil data API',
+      source: 'Memuat',
       sourceType: 'api',
+      hasData: false,
       uploadTarget,
     };
   }
 
-  if (value === null) {
+  if (!metric || (override?.value ?? metric.value) === null) {
     return {
-      label,
+      label: metric?.label ?? key,
       value: 'N/A',
       source: 'Belum tersedia',
       sourceType: 'unavailable',
+      hasData: false,
       uploadTarget,
     };
   }
 
+  const source = override?.source ?? dashboardSourceLabel[metric.source];
+
   return {
-    label,
-    value: formatMetric(value, maximumFractionDigits),
-    unit,
+    label: metric.label,
+    value: formatMetric(override?.value ?? metric.value),
+    unit: metric.unit ?? undefined,
     source,
-    sourceType,
+    sourceType: override ? 'api' : dashboardSourceType[metric.source],
+    hasData: true,
     uploadTarget,
   };
+}
+
+function dashboardMetricRows(
+  group: DashboardMetricGroup | undefined,
+  isLoading: boolean,
+  uploadTargets: Record<string, DailyTelemetryUploadTarget | undefined> = {},
+  overrides: Record<string, { value: NullableMetric; source: string } | undefined> = {},
+  preferredKeys: string[] = [],
+): MetricRow[] {
+  const priority = new Map(preferredKeys.map((key, index) => [key, index]));
+  const entries = Object.entries(group ?? {}).sort(([firstKey], [secondKey]) => {
+    const firstPriority = priority.get(firstKey) ?? Number.MAX_SAFE_INTEGER;
+    const secondPriority = priority.get(secondKey) ?? Number.MAX_SAFE_INTEGER;
+    return firstPriority - secondPriority;
+  });
+  if (entries.length === 0) {
+    return [dashboardMetricRow('Parameter dashboard', undefined, isLoading)];
+  }
+
+  return entries.map(([key, metric]) => dashboardMetricRow(
+    key,
+    metric,
+    isLoading,
+    uploadTargets[key],
+    overrides[key],
+  ));
+}
+
+function currentWibDate(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Asia/Jakarta',
+  }).format(new Date());
 }
 
 function buildUploadTarget(
@@ -254,11 +295,14 @@ function useObjectUrl(blob: Blob | undefined): string | null {
 }
 
 function StatusLabel({ value }: { value: string }) {
-  const style = value === 'Final' || value === 'Tersedia'
+  const normalizedValue = value.toLocaleLowerCase('id-ID');
+  const style = normalizedValue.includes('normal')
     ? 'bg-emerald-500'
-    : value === 'Aktif' || value === 'Proses'
-      ? 'bg-amber-500'
-      : 'bg-slate-300';
+    : normalizedValue.includes('basah')
+      ? 'bg-cyan-500'
+      : normalizedValue.includes('kering')
+        ? 'bg-amber-500'
+        : 'bg-slate-300';
 
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium text-slate-600">
@@ -269,58 +313,93 @@ function StatusLabel({ value }: { value: string }) {
 }
 
 function MonthlyTable({
-  selectedMonthIndex,
+  currentMonthIndex,
   records,
   isLoading,
-  onSelectMonth,
 }: {
-  selectedMonthIndex: number;
+  currentMonthIndex: number;
   records: MonthlyHydrology[];
   isLoading: boolean;
-  onSelectMonth: (index: number) => void;
 }) {
+  const monthlyEntries = MONTHS.map((month, index) => {
+    const record = records.find((item) => item.month === index + 1);
+
+    return {
+      month,
+      index,
+      predictionStatus: isLoading
+        ? 'Memuat'
+        : record?.hydrologyPrediction || '—',
+      actualStatus: isLoading
+        ? 'Memuat'
+        : record?.hydrologyActual || '—',
+    };
+  });
+  const statusRows = [
+    {
+      label: 'Prediksi',
+      getValue: (entry: (typeof monthlyEntries)[number]) => entry.predictionStatus,
+    },
+    {
+      label: 'Aktual',
+      getValue: (entry: (typeof monthlyEntries)[number]) => entry.actualStatus,
+    },
+  ];
+
   return (
     <div className="overflow-x-auto border-y border-[#e2e8f0]">
-      <table className="w-full border-collapse">
+      <table className="w-full min-w-[1120px] table-fixed border-collapse">
         <thead>
           <tr className="bg-[#f8fafc]">
-            <th scope="col" className="w-[34%] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748b]">Bulan</th>
-            <th scope="col" className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748b]">Prediksi</th>
-            <th scope="col" className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748b]">Aktual</th>
+            <th
+              scope="col"
+              className="sticky left-0 z-20 w-[136px] bg-[#f8fafc] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748b]"
+            >
+              Status
+            </th>
+            {monthlyEntries.map(({ month, index }) => {
+              const isCurrentMonth = currentMonthIndex === index;
+
+              return (
+                <th
+                  key={month}
+                  scope="col"
+                  title={isCurrentMonth ? `${month} · bulan berjalan` : month}
+                  className={`border-l border-[#e2e8f0] px-2 py-3 text-center text-xs font-semibold ${
+                    isCurrentMonth ? 'bg-cyan-50 text-[#0e7490]' : 'text-[#64748b]'
+                  }`}
+                >
+                  {month.slice(0, 3)}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {MONTHS.map((month, index) => {
-            const isSelected = selectedMonthIndex === index;
-            const record = records.find((item) => item.month === index + 1);
-            const predictionStatus = isLoading
-              ? 'Memuat'
-              : record?.hydrologyPrediction
-                ? 'Tersedia'
-                : '—';
-            const actualStatus = isLoading
-              ? 'Memuat'
-              : record?.hydrologyActual
-                ? 'Tersedia'
-                : '—';
+          {statusRows.map((row) => (
+            <tr key={row.label} className="border-t border-[#e2e8f0]">
+              <th
+                scope="row"
+                className="sticky left-0 z-10 bg-white px-4 py-3 text-left text-xs font-semibold text-[#475569]"
+              >
+                {row.label}
+              </th>
+              {monthlyEntries.map((entry) => {
+                const isCurrentMonth = currentMonthIndex === entry.index;
 
-            return (
-              <tr key={month} className={`border-t border-[#e2e8f0] transition-colors ${isSelected ? 'bg-[#f0fdff]' : 'hover:bg-[#f8fafc]'}`}>
-                <th scope="row" className={`p-0 text-left ${isSelected ? 'border-l-[3px] border-[#0891b2]' : ''}`}>
-                  <button
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => onSelectMonth(index)}
-                    className={`w-full px-4 py-3 text-left text-xs font-semibold ${isSelected ? 'text-[#0e7490]' : 'text-[#475569]'}`}
+                return (
+                  <td
+                    key={entry.month}
+                    className={`border-l border-[#e2e8f0] px-2 py-3 text-center ${
+                      isCurrentMonth ? 'bg-[#f0fdff]' : 'bg-white'
+                    }`}
                   >
-                    {month}
-                  </button>
-                </th>
-                <td className="px-4 py-3"><StatusLabel value={predictionStatus} /></td>
-                <td className="px-4 py-3"><StatusLabel value={actualStatus} /></td>
-              </tr>
-            );
-          })}
+                    <StatusLabel value={row.getValue(entry)} />
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -351,10 +430,7 @@ function ForecastMapCard({
       </div>
       <div className="flex h-[220px] items-center justify-center bg-[#f8fafc]">
         {isLoading ? (
-          <div className="flex flex-col items-center gap-2 text-xs font-medium text-[#64748b]">
-            <LoaderCircle size={22} className="animate-spin text-[#0891b2]" />
-            Memuat gambar BMKG…
-          </div>
+          <Skeleton className="size-full rounded-none" />
         ) : imageUrl ? (
           <img
             src={imageUrl}
@@ -433,25 +509,60 @@ function ForecastDetail({ rows }: { rows: MetricRow[] }) {
 }
 
 function ZoneCard({
+  cardRef,
+  isHighlighted = false,
+  onHighlightChange,
   title,
   subtitle,
   sections,
   onUpload,
 }: ZoneCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const compactRowLimit = 5;
+  const rowCount = sections.reduce((total, section) => total + section.rows.length, 0);
+  const visibleSections = sections.map((section, sectionIndex) => {
+    const precedingRowCount = sections
+      .slice(0, sectionIndex)
+      .reduce((total, precedingSection) => total + precedingSection.rows.length, 0);
+    const remainingVisibleRows = Math.max(0, compactRowLimit - precedingRowCount);
+    const rows = isExpanded
+      ? section.rows
+      : section.rows.slice(0, remainingVisibleRows);
+    return { ...section, rows };
+  });
+  const canToggle = rowCount > compactRowLimit;
+
   return (
-    <article className="overflow-hidden border border-[#e2e8f0] bg-white">
+    <article
+      ref={cardRef}
+      tabIndex={-1}
+      onPointerEnter={() => onHighlightChange?.(true)}
+      onPointerLeave={() => onHighlightChange?.(false)}
+      onFocusCapture={() => onHighlightChange?.(true)}
+      onBlurCapture={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        onHighlightChange?.(false);
+      }}
+      className={`overflow-hidden border bg-white outline-none transition-[border-color,box-shadow] duration-200 ${
+        isHighlighted
+          ? 'border-cyan-400 shadow-[0_0_0_3px_rgba(34,211,238,0.14)]'
+          : 'border-[#e2e8f0]'
+      }`}
+    >
       <div className="border-b border-[#e2e8f0] px-5 py-4">
         <h3 className="text-[15px] font-semibold text-[#0f172a]">{title}</h3>
-        <p className="mt-0.5 text-xs text-[#94a3b8]">{subtitle}</p>
+        {subtitle && <p className="mt-0.5 text-xs text-[#94a3b8]">{subtitle}</p>}
       </div>
 
-      {sections.map((section) => (
+      {visibleSections.map((section) => (
         <section key={section.title}>
-          <div className="border-b border-[#e2e8f0] bg-[#f8fafc] px-5 py-2.5">
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#64748b]">
-              {section.title}
-            </h4>
-          </div>
+          {visibleSections.length > 1 && (
+            <div className="border-b border-[#e2e8f0] bg-[#f8fafc] px-5 py-2.5">
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#64748b]">
+                {section.title}
+              </h4>
+            </div>
+          )}
           <div className="divide-y divide-[#f1f5f9] px-5">
             {section.rows.map((row) => (
               <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3">
@@ -477,7 +588,7 @@ function ZoneCard({
                       className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-cyan-700 transition-colors hover:text-cyan-800"
                     >
                       <Upload size={12} />
-                      Input data
+                      {row.hasData ? 'Edit data' : 'Input data'}
                     </button>
                   )}
                 </div>
@@ -486,6 +597,17 @@ function ZoneCard({
           </div>
         </section>
       ))}
+      {canToggle && (
+        <button
+          type="button"
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+          className="flex w-full cursor-pointer items-center justify-center gap-1.5 border-t border-[#e2e8f0] bg-[#f8fafc] px-4 py-2.5 text-xs font-semibold text-cyan-700 transition-colors hover:bg-cyan-50 hover:text-cyan-800"
+        >
+          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {isExpanded ? 'Ringkas parameter' : `Lihat semua (${rowCount})`}
+        </button>
+      )}
     </article>
   );
 }
@@ -493,14 +615,8 @@ function ZoneCard({
 function GenericHydrologySchematic({ plantName }: { plantName: string }) {
   return (
     <article className="overflow-hidden border border-[#e2e8f0] bg-white">
-      <div className="flex flex-col justify-between gap-3 border-b border-[#e2e8f0] px-5 py-4 sm:flex-row sm:items-center">
-        <div>
-          <h3 className="text-[15px] font-semibold text-[#0f172a]">Skema Aliran Hidrologi</h3>
-          <p className="mt-0.5 text-xs text-[#94a3b8]">
-            Hubungan aliran dari catchment area hingga sisi hilir
-          </p>
-        </div>
-        <span className="text-[11px] font-medium text-[#94a3b8]">Ilustrasi operasional</span>
+      <div className="border-b border-[#e2e8f0] px-5 py-4">
+        <h3 className="text-[15px] font-semibold text-[#0f172a]">Skema Hidrologi</h3>
       </div>
 
       <div className="overflow-x-auto">
@@ -594,79 +710,280 @@ function GenericHydrologySchematic({ plantName }: { plantName: string }) {
   );
 }
 
-interface HydrologySchematicProps {
+interface HydrologySpatialLayoutProps {
   plant: Pick<Plant, 'code' | 'name'>;
   plantName: string;
+  upstreamSections: MetricSection[];
+  damSections: MetricSection[];
+  downstreamSections: MetricSection[];
+  onUpload: (target: DailyTelemetryUploadTarget) => void;
 }
 
-function HydrologySchematic({ plant, plantName }: HydrologySchematicProps) {
+interface HydrologyConnectorPath {
+  zone: HydrologyZone;
+  path: string;
+  endX: number;
+  endY: number;
+}
+
+interface HydrologyConnectorLayout {
+  width: number;
+  height: number;
+  paths: HydrologyConnectorPath[];
+}
+
+const hydrologyZones: HydrologyZone[] = ['upstream', 'dam', 'downstream'];
+
+const hydrologyConnectorColors: Record<HydrologyZone, string> = {
+  upstream: '#22d3ee',
+  dam: '#f59e0b',
+  downstream: '#34d399',
+};
+
+function HydrologyConnectorOverlay({
+  activeZone,
+  layout,
+}: {
+  activeZone: HydrologyZone | null;
+  layout: HydrologyConnectorLayout | null;
+}) {
+  if (!layout || layout.paths.length === 0) return null;
+
+  return (
+    <svg
+      viewBox={`0 0 ${layout.width} ${layout.height}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-20 hidden h-full w-full overflow-visible xl:block"
+    >
+      {layout.paths.map((connector) => {
+        const color = hydrologyConnectorColors[connector.zone];
+        const isActive = activeZone === connector.zone;
+        const isMuted = activeZone !== null && !isActive;
+
+        return (
+          <g key={connector.zone}>
+            <path
+              d={connector.path}
+              fill="none"
+              stroke="#ffffff"
+              strokeOpacity={isMuted ? 0.28 : 0.82}
+              strokeWidth={isActive ? 7 : 6}
+              vectorEffect="non-scaling-stroke"
+            />
+            <path
+              d={connector.path}
+              fill="none"
+              stroke={color}
+              strokeDasharray={isActive ? undefined : '7 7'}
+              strokeLinecap="round"
+              strokeOpacity={isMuted ? 0.2 : isActive ? 1 : 0.72}
+              strokeWidth={isActive ? 3 : 2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle
+              cx={connector.endX}
+              cy={connector.endY}
+              r={isActive ? 6 : 4.5}
+              fill={color}
+              stroke="#ffffff"
+              strokeWidth="2"
+              vectorEffect="non-scaling-stroke"
+              opacity={isMuted ? 0.28 : 1}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function HydrologySpatialLayout({
+  plant,
+  plantName,
+  upstreamSections,
+  damSections,
+  downstreamSections,
+  onUpload,
+}: HydrologySpatialLayoutProps) {
   const imagery = getDamImagery(plant);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const imageLoadFailed = Boolean(imagery && failedImageUrl === imagery.imageUrl);
+  const [activeZone, setActiveZone] = useState<HydrologyZone | null>(null);
+  const [connectorLayout, setConnectorLayout] =
+    useState<HydrologyConnectorLayout | null>(null);
+  const layoutRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<HTMLElement | null>(null);
+  const upstreamCardRef = useRef<HTMLElement | null>(null);
+  const damCardRef = useRef<HTMLElement | null>(null);
+  const downstreamCardRef = useRef<HTMLElement | null>(null);
+  const spatialImageUrl = imagery && !imageLoadFailed ? imagery.imageUrl : null;
+
+  const getCardElement = useCallback((zone: HydrologyZone): HTMLElement | null => {
+    if (zone === 'upstream') return upstreamCardRef.current;
+    if (zone === 'dam') return damCardRef.current;
+    return downstreamCardRef.current;
+  }, []);
+
+  const selectZone = useCallback((zone: HydrologyZone) => {
+    setActiveZone(zone);
+    const card = getCardElement(zone);
+
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [getCardElement]);
+
+  useEffect(() => {
+    if (!spatialImageUrl) return undefined;
+
+    const layoutElement = layoutRef.current;
+    const mapElement = mapRef.current;
+
+    if (!layoutElement || !mapElement) return undefined;
+
+    let animationFrame = 0;
+
+    const measure = () => {
+      const layoutRect = layoutElement.getBoundingClientRect();
+      const paths: HydrologyConnectorPath[] = [];
+
+      hydrologyZones.forEach((zone) => {
+        const anchor = mapElement.querySelector<SVGCircleElement>(
+          `[data-hydrology-anchor-point="${zone}"]`,
+        );
+        const card = getCardElement(zone);
+
+        if (!anchor || !card) return;
+
+        const anchorRect = anchor.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        const startX = cardRect.left + (cardRect.width / 2) - layoutRect.left;
+        const startY = cardRect.bottom - layoutRect.top;
+        const endX = anchorRect.left + (anchorRect.width / 2) - layoutRect.left;
+        const endY = anchorRect.top + (anchorRect.height / 2) - layoutRect.top;
+        const verticalDistance = Math.max(1, endY - startY);
+        const controlY = startY + Math.max(52, verticalDistance * 0.48);
+        const round = (value: number) => Math.round(value * 100) / 100;
+
+        paths.push({
+          zone,
+          path: [
+            `M ${round(startX)} ${round(startY)}`,
+            `C ${round(startX)} ${round(controlY)}`,
+            `${round(endX)} ${round(controlY)}`,
+            `${round(endX)} ${round(endY)}`,
+          ].join(' '),
+          endX: round(endX),
+          endY: round(endY),
+        });
+      });
+
+      setConnectorLayout({
+        width: Math.max(1, Math.round(layoutRect.width)),
+        height: Math.max(1, Math.round(layoutRect.height)),
+        paths,
+      });
+    };
+
+    const scheduleMeasure = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(measure);
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleMeasure);
+    resizeObserver.observe(layoutElement);
+    resizeObserver.observe(mapElement);
+    hydrologyZones.forEach((zone) => {
+      const card = getCardElement(zone);
+      if (card) resizeObserver.observe(card);
+    });
+    window.addEventListener('resize', scheduleMeasure);
+    scheduleMeasure();
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', scheduleMeasure);
+      resizeObserver.disconnect();
+    };
+  }, [getCardElement, spatialImageUrl]);
+
+  const renderCards = (className: string) => (
+    <div className={className}>
+      <ZoneCard
+        cardRef={upstreamCardRef}
+        isHighlighted={activeZone === 'upstream'}
+        onHighlightChange={(isHighlighted) => (
+          setActiveZone((current) => (
+            isHighlighted ? 'upstream' : current === 'upstream' ? null : current
+          ))
+        )}
+        title="Hulu"
+        sections={upstreamSections}
+        onUpload={onUpload}
+      />
+      <ZoneCard
+        cardRef={damCardRef}
+        isHighlighted={activeZone === 'dam'}
+        onHighlightChange={(isHighlighted) => (
+          setActiveZone((current) => (
+            isHighlighted ? 'dam' : current === 'dam' ? null : current
+          ))
+        )}
+        title="Bendungan"
+        sections={damSections}
+        onUpload={onUpload}
+      />
+      <ZoneCard
+        cardRef={downstreamCardRef}
+        isHighlighted={activeZone === 'downstream'}
+        onHighlightChange={(isHighlighted) => (
+          setActiveZone((current) => (
+            isHighlighted ? 'downstream' : current === 'downstream' ? null : current
+          ))
+        )}
+        title="Hilir"
+        sections={downstreamSections}
+        onUpload={onUpload}
+      />
+    </div>
+  );
 
   if (!imagery || imageLoadFailed) {
-    return <GenericHydrologySchematic plantName={plantName} />;
+    return (
+      <>
+        {renderCards('relative z-30 mt-5 grid gap-5 xl:grid-cols-[1.15fr_0.9fr_0.9fr]')}
+        <div className="mt-5">
+          <GenericHydrologySchematic plantName={plantName} />
+        </div>
+      </>
+    );
   }
 
   return (
-    <article className="overflow-hidden border border-[#e2e8f0] bg-white">
-      <div className="flex flex-col justify-between gap-3 border-b border-[#e2e8f0] px-5 py-4 sm:flex-row sm:items-center">
-        <div>
-          <h3 className="text-[15px] font-semibold text-[#0f172a]">Skema Aliran Hidrologi</h3>
-          <p className="mt-0.5 text-xs text-[#94a3b8]">
-            Referensi posisi waduk dan bendungan
-          </p>
-        </div>
-        <span className="text-[11px] font-medium text-[#0e7490]">Citra satelit referensi</span>
-      </div>
-
-      <figure className="relative h-[400px] overflow-hidden bg-[#e2e8f0] sm:h-[500px]">
-        <img
-          src={imagery.imageUrl}
-          alt={imagery.alt}
-          loading="lazy"
-          onError={() => setFailedImageUrl(imagery.imageUrl)}
-          className="absolute inset-0 h-full w-full object-cover"
+    <div ref={layoutRef} className="relative">
+      {renderCards('relative z-30 grid gap-5 xl:grid-cols-[1.15fr_0.9fr_0.9fr]')}
+      <HydrologyConnectorOverlay
+        activeZone={activeZone}
+        layout={connectorLayout}
+      />
+      <div className="mt-5 xl:mt-16">
+        <SatelliteHydrologyMap
+          imagery={imagery}
+          activeZone={activeZone}
+          mapRef={mapRef}
+          onActiveZoneChange={setActiveZone}
+          onImageError={() => setFailedImageUrl(imagery.imageUrl)}
+          onZoneSelect={selectZone}
         />
-
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#020617]/90 via-[#020617]/55 to-transparent px-5 pb-4 pt-20 text-white">
-          <figcaption>
-            <p className="text-sm font-semibold">{imagery.damName}</p>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-white/75">
-              <MapPin size={12} aria-hidden="true" />
-              {imagery.location}
-            </p>
-            <p className="mt-1 text-[10px] text-white/60">{imagery.acquisitionLabel}</p>
-          </figcaption>
-          <a
-            href={imagery.attributionUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-[10px] text-white/60 transition-colors hover:text-white"
-          >
-            World Imagery — {imagery.attribution}
-            <ExternalLink size={10} aria-hidden="true" />
-          </a>
-        </div>
-
-        <a
-          href={imagery.mapUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="absolute right-4 top-4 inline-flex items-center gap-1.5 bg-white/95 px-3 py-2 text-[11px] font-semibold text-[#0f172a] shadow-sm backdrop-blur transition-colors hover:bg-white"
-        >
-          Buka peta satelit
-          <ExternalLink size={12} aria-hidden="true" />
-        </a>
-      </figure>
-    </article>
+      </div>
+    </div>
   );
 }
 
 export default function Telemetering() {
   const { plant, plta, pltaId } = useActivePLTA();
   const operationYear = new Date().getFullYear();
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState(new Date().getMonth());
+  const currentMonthIndex = new Date().getMonth();
   const [isMonthlySheetOpen, setIsMonthlySheetOpen] = useState(false);
   const [imageUploadKind, setImageUploadKind] = useState<MonthlyHydrologyImageKind | null>(null);
   const [dailyUploadTarget, setDailyUploadTarget] =
@@ -674,8 +991,8 @@ export default function Telemetering() {
   const closeMonthlySheet = useCallback(() => setIsMonthlySheetOpen(false), []);
   const closeImageUploadSheet = useCallback(() => setImageUploadKind(null), []);
   const closeDailyUploadSheet = useCallback(() => setDailyUploadTarget(null), []);
-  const selectedMonth = MONTHS[selectedMonthIndex];
-  const selectedMonthNumber = selectedMonthIndex + 1;
+  const selectedMonth = MONTHS[currentMonthIndex];
+  const selectedMonthNumber = currentMonthIndex + 1;
   const dashboardQuery = usePLTAHydrologyDashboardQuery(pltaId);
   const monthlyQuery = useMonthlyHydrologyQuery(pltaId, operationYear);
   const uploadTagsQuery = usePLTATagsQuery(pltaId, {
@@ -784,25 +1101,29 @@ export default function Telemetering() {
     ['turbin', 'turbine', 'powerhouse', 'unit'],
     true,
   );
-  const reservoirTma = reservoirReading?.value
-    ?? daily?.upstream.reservoirTma
-    ?? null;
-  const tailraceTma = tailraceReading?.value
-    ?? daily?.downstream.tailraceTma
-    ?? null;
-  const turbineDischarge = turbineDischargeReading?.value
-    ?? sumMetrics([
-      daily?.dam.turbineDischargeT1 ?? null,
-      daily?.dam.turbineDischargeT2 ?? null,
-    ]);
   const isDailyLoading = dashboardQuery.isLoading;
-  const reservoirTmaTime = formatHydrologyTime(
-    daily?.upstream.reservoirTmaTime ?? null,
-  );
+  const reservoirOverride = useMemo(() => reservoirReading?.value === undefined
+    ? undefined
+    : {
+      value: reservoirReading.value,
+      source: monitoringSource(reservoirReading),
+    }, [reservoirReading]);
+  const tailraceOverride = useMemo(() => tailraceReading?.value === undefined
+    ? undefined
+    : {
+      value: tailraceReading.value,
+      source: monitoringSource(tailraceReading),
+    }, [tailraceReading]);
+  const turbineDischargeOverride = useMemo(() => turbineDischargeReading?.value === undefined
+    ? undefined
+    : {
+      value: turbineDischargeReading.value,
+      source: monitoringSource(turbineDischargeReading),
+    }, [turbineDischargeReading]);
 
   const forecast = useMemo(() => {
     const record = selectedMonthlyRecord;
-    const apiSource = 'Hydrology API';
+    const apiSource = 'Data bulanan';
 
     return {
       rows: [
@@ -897,7 +1218,7 @@ export default function Telemetering() {
             : '%',
           source: record?.achievementPercentage === null || record?.achievementPercentage === undefined
             ? 'Belum tersedia'
-            : 'Dihitung server',
+            : 'Formulasi',
           sourceType: record?.achievementPercentage === null || record?.achievementPercentage === undefined
             ? 'unavailable'
             : 'formula',
@@ -906,225 +1227,76 @@ export default function Telemetering() {
     };
   }, [selectedMonth, selectedMonthlyRecord]);
 
-  const upstreamSections = useMemo<MetricSection[]>(() => [
-    {
-      title: 'Batas operasi waduk',
-      rows: [
-        metricRow(
-          'Target tinggi muka air waduk (TMA)',
-          daily?.upstream.targetTma ?? null,
-          'mdpl',
-          dailyUploadTargets.targetTma
-            ? 'Input manual · Dashboard API'
-            : 'Dashboard API',
-          'input',
-          3,
-          isDailyLoading,
-          dailyUploadTargets.targetTma,
-        ),
-        metricRow('Target volume waduk', daily?.upstream.targetVolume ?? null, 'm³', 'Dashboard API', 'input', 2, isDailyLoading),
-        metricRow('Volume waduk', daily?.upstream.reservoirVolume ?? null, 'm³', 'Dashboard API', 'formula', 2, isDailyLoading),
-        metricRow('Batas tinggi muka air limpasan', daily?.upstream.spillwayTmaLimit ?? null, 'mdpl', 'Konstanta API', 'constant', 3, isDailyLoading),
-        metricRow('Batas tinggi muka air MOL', daily?.upstream.molTmaLimit ?? null, 'mdpl', 'Konstanta API', 'constant', 3, isDailyLoading),
-      ],
-    },
-    {
-      title: 'Kondisi hulu',
-      rows: [
-        metricRow(
-          'Tinggi muka air waduk',
-          reservoirTma,
-          'mdpl',
-          reservoirReading
-            ? monitoringSource(reservoirReading, monitoringStream.status)
-            : reservoirTmaTime
-              ? `Dashboard API · ${reservoirTmaTime}`
-              : 'Dashboard API',
-          'api',
-          3,
-          isDailyLoading,
-        ),
-        metricRow('Inflow waduk', daily?.upstream.inflow ?? null, 'm³/detik', 'Dashboard API', 'api', 2, isDailyLoading),
-        metricRow('Curah hujan hulu', daily?.upstream.upstreamRainfall ?? null, 'mm/hari', 'Dashboard API', 'api', 2, isDailyLoading),
-        metricRow('Turbidity air hulu', daily?.upstream.upstreamTurbidity ?? null, 'NTU', 'Dashboard API', 'api', 2, isDailyLoading),
-        metricRow('Volume efektif terhadap target TMA', daily?.upstream.effectiveVolumeToTarget ?? null, 'm³', 'Hasil formula API', 'formula', 2, isDailyLoading),
-        metricRow('Volume efektif terhadap TMA MOL', daily?.upstream.effectiveVolumeToMol ?? null, 'm³', 'Hasil formula API', 'formula', 2, isDailyLoading),
-        metricRow('Ketersediaan energi terhadap target TMA', daily?.upstream.availableEnergyToTargetMwh ?? null, 'MWh', 'Hasil formula API', 'formula', 2, isDailyLoading),
-        metricRow('Ketersediaan energi terhadap TMA MOL', daily?.upstream.availableEnergyToMolMwh ?? null, 'MWh', 'Hasil formula API', 'formula', 2, isDailyLoading),
-        metricRow('Service hour pembangkit full load', daily?.upstream.fullLoadServiceHours ?? null, 'jam', 'Hasil formula API', 'formula', 2, isDailyLoading),
-      ],
-    },
-  ], [
-    daily,
+  const upstreamSections = useMemo<MetricSection[]>(() => [{
+    title: 'Parameter hulu',
+    rows: dashboardMetricRows(
+      daily?.upstream,
+      isDailyLoading,
+      { target_tma: dailyUploadTargets.targetTma },
+      { tma_waduk: reservoirOverride },
+      ['target_tma', 'tma_waduk', 'inflow', 'curah_hujan', 'volume_waduk'],
+    ),
+  }], [
+    daily?.upstream,
     dailyUploadTargets.targetTma,
     isDailyLoading,
-    monitoringStream.status,
-    reservoirReading,
-    reservoirTma,
-    reservoirTmaTime,
+    reservoirOverride,
   ]);
 
-  const damSections = useMemo<MetricSection[]>(() => [
-    {
-      title: 'Rencana debit',
-      rows: [
-        metricRow(
-          'Rencana debit turbin',
-          daily?.dam.plannedTurbineDischarge ?? null,
-          'm³/detik',
-          dailyUploadTargets.plannedTurbineDischarge
-            ? 'Input manual · Dashboard API'
-            : 'Dashboard API',
-          'input',
-          2,
-          isDailyLoading,
-          dailyUploadTargets.plannedTurbineDischarge,
-        ),
-        metricRow(
-          'Rencana debit spillway',
-          daily?.dam.plannedSpillwayDischarge ?? null,
-          'm³/detik',
-          dailyUploadTargets.plannedSpillwayDischarge
-            ? 'Input manual · Dashboard API'
-            : 'Dashboard API',
-          'input',
-          2,
-          isDailyLoading,
-          dailyUploadTargets.plannedSpillwayDischarge,
-        ),
-        metricRow(
-          'Rencana debit HJV',
-          daily?.dam.plannedHjvDischarge ?? null,
-          'm³/detik',
-          dailyUploadTargets.plannedHjvDischarge
-            ? 'Input manual · Dashboard API'
-            : 'Dashboard API',
-          'input',
-          2,
-          isDailyLoading,
-          dailyUploadTargets.plannedHjvDischarge,
-        ),
-      ],
-    },
-    {
-      title: 'Realisasi debit',
-      rows: [
-        metricRow(
-          'Debit turbin',
-          turbineDischarge,
-          'm³/detik',
-          turbineDischargeReading
-            ? monitoringSource(turbineDischargeReading, monitoringStream.status)
-            : 'Dashboard API · akumulasi T1 + T2',
-          'api',
-          2,
-          isDailyLoading,
-        ),
-        metricRow('Debit turbin 1', daily?.dam.turbineDischargeT1 ?? null, 'm³/detik', 'Dashboard API', 'api', 2, isDailyLoading),
-        metricRow('Debit turbin 2', daily?.dam.turbineDischargeT2 ?? null, 'm³/detik', 'Dashboard API', 'api', 2, isDailyLoading),
-        metricRow(
-          'Debit spillway',
-          daily?.dam.spillwayDischarge ?? null,
-          'm³/detik',
-          dailyUploadTargets.spillwayDischarge
-            ? 'Input manual · Dashboard API'
-            : 'Dashboard API',
-          dailyUploadTargets.spillwayDischarge ? 'input' : 'api',
-          2,
-          isDailyLoading,
-          dailyUploadTargets.spillwayDischarge,
-        ),
-        metricRow(
-          'Debit HJV',
-          daily?.dam.hjvDischarge ?? null,
-          'm³/detik',
-          dailyUploadTargets.hjvDischarge
-            ? 'Input manual · Dashboard API'
-            : 'Dashboard API',
-          dailyUploadTargets.hjvDischarge ? 'input' : 'api',
-          2,
-          isDailyLoading,
-          dailyUploadTargets.hjvDischarge,
-        ),
-        metricRow('Delta head', daily?.dam.deltaHeadCm ?? null, 'cm', 'Hasil formula API', 'formula', 2, isDailyLoading),
-      ],
-    },
-  ], [
-    daily,
+  const damSections = useMemo<MetricSection[]>(() => [{
+    title: 'Parameter bendungan dan pelepasan',
+    rows: dashboardMetricRows(
+      daily?.dam,
+      isDailyLoading,
+      {
+        rencana_debit_turbin_unit_1: dailyUploadTargets.plannedTurbineDischarge,
+        rencana_debit_turbin_unit_2: dailyUploadTargets.plannedTurbineDischarge,
+        rencana_debit_turbin_unit_3: dailyUploadTargets.plannedTurbineDischarge,
+        rencana_debit_turbin_unit_4: dailyUploadTargets.plannedTurbineDischarge,
+        rencana_debit_spillway: dailyUploadTargets.plannedSpillwayDischarge,
+        rencana_debit_hjv: dailyUploadTargets.plannedHjvDischarge,
+        debit_spillway: dailyUploadTargets.spillwayDischarge,
+        debit_hjv: dailyUploadTargets.hjvDischarge,
+      },
+      { debit_turbin_total: turbineDischargeOverride },
+      ['debit_turbin_total', 'debit_spillway', 'debit_irigasi', 'debit_ddc', 'delta_head'],
+    ),
+  }], [
+    daily?.dam,
     dailyUploadTargets.hjvDischarge,
     dailyUploadTargets.plannedHjvDischarge,
     dailyUploadTargets.plannedSpillwayDischarge,
     dailyUploadTargets.plannedTurbineDischarge,
     dailyUploadTargets.spillwayDischarge,
     isDailyLoading,
-    monitoringStream.status,
-    turbineDischarge,
-    turbineDischargeReading,
+    turbineDischargeOverride,
   ]);
 
-  const downstreamSections = useMemo<MetricSection[]>(() => [
-    {
-      title: 'Kondisi hilir',
-      rows: [
-        metricRow(
-          'Tinggi muka air tailrace',
-          tailraceTma,
-          'mdpl',
-          tailraceReading
-            ? monitoringSource(tailraceReading, monitoringStream.status)
-            : 'Dashboard API',
-          'api',
-          3,
-          isDailyLoading,
-        ),
-        metricRow('Tinggi jatuh air (head)', daily?.downstream.headM ?? null, 'm', 'Hasil formula API', 'formula', 2, isDailyLoading),
-        metricRow('Efisiensi pemakaian air turbin 1', daily?.downstream.turbineEfficiency1 ?? null, '%', 'Hasil formula API', 'formula', 2, isDailyLoading),
-        metricRow('Efisiensi pemakaian air turbin 2', daily?.downstream.turbineEfficiency2 ?? null, '%', 'Hasil formula API', 'formula', 2, isDailyLoading),
-        metricRow('Turbidity air sisi hilir', daily?.downstream.downstreamTurbidity ?? null, 'NTU', 'Dashboard API', 'api', 2, isDailyLoading),
-      ],
-    },
-  ], [
-    daily,
+  const downstreamSections = useMemo<MetricSection[]>(() => [{
+    title: 'Parameter hilir',
+    rows: dashboardMetricRows(
+      daily?.downstream,
+      isDailyLoading,
+      {},
+      { tma_tailrace: tailraceOverride },
+      ['tma_tailrace', 'head', 'swc_unit_1', 'turbidity_hilir', 'ph_hilir'],
+    ),
+  }], [
+    daily?.downstream,
     isDailyLoading,
-    monitoringStream.status,
-    tailraceReading,
-    tailraceTma,
+    tailraceOverride,
   ]);
-
   return (
-    <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
+    <div className="flex flex-1 flex-col gap-5 animate-in fade-in duration-500">
       <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div className="flex flex-col gap-1">
-          <h1 className="page-title">Telemetering</h1>
-          <p className="page-description">
-            Kondisi hidrologi bulanan dan harian PLTA {plta.shortName}
-          </p>
-        </div>
+        <h1 className="page-title">Telemetering</h1>
         <PlantSwitcher page="telemetering" />
       </header>
 
       <section className="border-t border-[#e2e8f0] pt-5">
         <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0891b2]">Perencanaan operasi</p>
-            <h2 className="mt-1 text-base font-semibold text-[#0f172a]">Kondisi Hidrologi Bulanan</h2>
-            <p className="mt-0.5 text-xs text-[#64748b]">
-              Pilih bulan untuk melihat status data, prediksi hidrologi, dan target produksi energi.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:items-end">
-            <span className="text-xs font-medium text-[#64748b]">Tahun operasi {operationYear}</span>
-            <Button
-              type="button"
-              size="sm"
-              leftIcon={<PencilLine size={15} />}
-              disabled={monthlyQuery.isLoading}
-              onClick={() => setIsMonthlySheetOpen(true)}
-              className="h-9 whitespace-nowrap"
-            >
-              Input Data Bulanan
-            </Button>
-          </div>
+          <h2 className="text-base font-semibold text-[#0f172a]">Hidrologi Bulanan</h2>
+          <span className="text-xs font-medium text-[#64748b]">{operationYear}</span>
         </div>
 
         {monthlyQuery.isError && (
@@ -1141,49 +1313,61 @@ export default function Telemetering() {
           </div>
         )}
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.8fr)]">
-          <MonthlyTable
-            selectedMonthIndex={selectedMonthIndex}
-            records={monthlyRecords}
-            isLoading={monthlyQuery.isLoading}
-            onSelectMonth={setSelectedMonthIndex}
-          />
-          <div className="border-t border-[#e2e8f0] pt-5 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0891b2]">Outlook periode</p>
-            <h2 className="mt-1 text-base font-semibold text-[#0f172a]">Ringkasan Prediksi {selectedMonth}</h2>
-            <p className="mt-0.5 text-xs text-[#64748b]">Target produksi dan proyeksi energi pada periode terpilih.</p>
-            <div className="mt-4">
-              <ForecastDetail rows={forecast.rows} />
-            </div>
-          </div>
-        </div>
+        <MonthlyTable
+          currentMonthIndex={currentMonthIndex}
+          records={monthlyRecords}
+          isLoading={monthlyQuery.isLoading}
+        />
 
         <div className="mt-5 border-t border-[#e2e8f0] pt-5">
-          <div className="mb-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0891b2]">Prakiraan cuaca</p>
-            <h2 className="mt-1 text-base font-semibold text-[#0f172a]">Prakiraan Hujan</h2>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ForecastMapCard
-              title="Prakiraan Curah Hujan"
-              subtitle={`${selectedMonth} ${operationYear}`}
-              imageUrl={rainfallImageUrl}
-              isLoading={rainfallImageQuery.isLoading}
-              isError={rainfallImageQuery.isError}
-              onUpload={!monthlyQuery.isLoading && !selectedMonthlyRecord?.rainfallImage
-                ? () => setImageUploadKind('curah_hujan')
-                : undefined}
-            />
-            <ForecastMapCard
-              title="Prakiraan Sifat Hujan"
-              subtitle="Terhadap kondisi klimatologis"
-              imageUrl={rainfallCharacteristicImageUrl}
-              isLoading={rainfallCharacteristicImageQuery.isLoading}
-              isError={rainfallCharacteristicImageQuery.isError}
-              onUpload={!monthlyQuery.isLoading && !selectedMonthlyRecord?.rainfallCharacteristicImage
-                ? () => setImageUploadKind('sifat_hujan')
-                : undefined}
-            />
+          <div className="grid gap-5 xl:grid-cols-[minmax(380px,0.9fr)_minmax(0,1.1fr)]">
+            <div>
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                <div>
+                  <h2 className="text-base font-semibold text-[#0f172a]">Ringkasan {selectedMonth}</h2>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  leftIcon={<PencilLine size={15} />}
+                  disabled={monthlyQuery.isLoading}
+                  onClick={() => setIsMonthlySheetOpen(true)}
+                  className="h-9 shrink-0 whitespace-nowrap"
+                >
+                  Input Data Bulanan
+                </Button>
+              </div>
+              <div className="mt-4">
+                <ForecastDetail rows={forecast.rows} />
+              </div>
+            </div>
+            <div className="border-t border-[#e2e8f0] pt-5 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-[#0f172a]">Prakiraan Hujan</h3>
+              </div>
+              <div className="grid gap-4">
+                <ForecastMapCard
+                  title="Prakiraan Curah Hujan"
+                  subtitle={`${selectedMonth} ${operationYear}`}
+                  imageUrl={rainfallImageUrl}
+                  isLoading={rainfallImageQuery.isLoading}
+                  isError={rainfallImageQuery.isError}
+                  onUpload={!monthlyQuery.isLoading && !selectedMonthlyRecord?.rainfallImage
+                    ? () => setImageUploadKind('curah_hujan')
+                    : undefined}
+                />
+                <ForecastMapCard
+                  title="Prakiraan Sifat Hujan"
+                  subtitle="Terhadap kondisi klimatologis"
+                  imageUrl={rainfallCharacteristicImageUrl}
+                  isLoading={rainfallCharacteristicImageQuery.isLoading}
+                  isError={rainfallCharacteristicImageQuery.isError}
+                  onUpload={!monthlyQuery.isLoading && !selectedMonthlyRecord?.rainfallCharacteristicImage
+                    ? () => setImageUploadKind('sifat_hujan')
+                    : undefined}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1199,24 +1383,20 @@ export default function Telemetering() {
       <section className="border-t border-[#e2e8f0] pt-5">
         <div className="mb-4 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0891b2]">Kondisi lapangan</p>
-            <h2 className="mt-1 text-base font-semibold text-[#0f172a]">Kondisi Hidrologi Harian</h2>
-            <p className="mt-0.5 text-xs text-[#64748b]">
-              {daily
-                ? `Parameter operasi ${formatHydrologyDate(daily.date)} dari sisi hulu, bendungan, hingga sisi hilir.`
-                : 'Parameter operasi dari sisi hulu, bendungan, hingga sisi hilir.'}
-            </p>
+            <h2 className="text-base font-semibold text-[#0f172a]">Hidrologi Harian</h2>
+            {daily && (
+              <p className="mt-1 text-xs text-[#64748b]">{formatHydrologyDate(daily.date)}</p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-medium">
             <span className={monitoringStream.status === 'open' ? 'text-emerald-600' : 'text-amber-600'}>
-              {monitoringStream.status === 'open' ? 'WebSocket aktif' : 'Fallback Dashboard API'}
+              {monitoringStream.status === 'open' ? 'Realtime aktif' : 'Realtime belum aktif'}
             </span>
-            <span className="text-[#0e7490]">Dashboard API</span>
             {(uploadTags?.length ?? 0) > 0 && (
-              <span className="text-cyan-700">Input manual</span>
+              <span className="text-cyan-700">Input</span>
             )}
-            <span className="text-[#64748b]">Data operasi</span>
-            <span className="text-[#b45309]">Formula API</span>
+            <span className="text-[#b45309]">Formulasi</span>
+            <span className="text-[#94a3b8]">Konstanta</span>
             <span className="inline-flex items-center gap-1 text-[#dc2626]">
               <AlertTriangle size={11} />
               Belum tersedia
@@ -1275,30 +1455,14 @@ export default function Telemetering() {
           </div>
         )}
 
-        <div className="grid gap-5 xl:grid-cols-[1.15fr_0.9fr_0.9fr]">
-          <ZoneCard
-            title="Hulu"
-            subtitle="Upstream dan kondisi tampungan"
-            sections={upstreamSections}
-            onUpload={setDailyUploadTarget}
-          />
-          <ZoneCard
-            title="Dam / Bendungan"
-            subtitle="Rencana dan realisasi pelepasan air"
-            sections={damSections}
-            onUpload={setDailyUploadTarget}
-          />
-          <ZoneCard
-            title="Hilir"
-            subtitle="Tailrace, downstream, dan efisiensi"
-            sections={downstreamSections}
-            onUpload={setDailyUploadTarget}
-          />
-        </div>
-
-        <div className="mt-5">
-          <HydrologySchematic plant={plant} plantName={plta.shortName} />
-        </div>
+        <HydrologySpatialLayout
+          plant={plant}
+          plantName={plta.shortName}
+          upstreamSections={upstreamSections}
+          damSections={damSections}
+          downstreamSections={downstreamSections}
+          onUpload={setDailyUploadTarget}
+        />
       </section>
 
       {isMonthlySheetOpen && (
@@ -1332,7 +1496,7 @@ export default function Telemetering() {
           isOpen
           pltaId={pltaId}
           plantName={plta.shortName}
-          defaultDate={daily?.date ?? new Date().toISOString().slice(0, 10)}
+          defaultDate={daily?.date ?? currentWibDate()}
           target={dailyUploadTarget}
           onClose={closeDailyUploadSheet}
         />

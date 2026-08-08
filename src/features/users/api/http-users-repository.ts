@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../api/http';
+import { apiRequest, createApiResponseParser } from '../../../api/http';
 import type {
   ChangePasswordInput,
   CreateUserInput,
@@ -14,21 +14,9 @@ import {
   type ApiUser,
 } from './schemas';
 
-function parseResponse<T>(
-  payload: unknown,
-  schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: { flatten: () => unknown } } },
-  endpoint: string,
-): T {
-  const result = schema.safeParse(payload);
-  if (result.success) return result.data;
-
-  throw new ApiError('Respons server tidak sesuai kontrak User Management', {
-    status: 502,
-    statusText: 'Invalid API Response',
-    details: result.error.flatten(),
-    url: endpoint,
-  });
-}
+const parseResponse = createApiResponseParser(
+  'Respons server tidak sesuai kontrak User Management',
+);
 
 function mapUser(user: ApiUser): UserAccount {
   return {

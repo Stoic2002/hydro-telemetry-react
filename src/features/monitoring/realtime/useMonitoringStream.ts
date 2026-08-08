@@ -31,14 +31,14 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
 const MAX_RECONNECT_ATTEMPTS = 8;
 const STABLE_CONNECTION_MS = 10_000;
 
-export interface UseMonitoringStreamOptions {
+interface UseMonitoringStreamOptions {
   scope: 'plta' | 'river-basin';
   id: string;
   enabled?: boolean;
   bootstrapLatest?: boolean;
 }
 
-export interface MonitoringStreamState {
+interface MonitoringStreamState {
   status: MonitoringConnectionStatus;
   reconnectAttempt: number;
   lastMessageAt: Date | null;

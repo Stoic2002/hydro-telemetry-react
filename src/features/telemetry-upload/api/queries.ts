@@ -11,7 +11,7 @@ function useRefreshHydrologyDashboard() {
 
   return async (pltaId: string) => {
     await queryClient.invalidateQueries({
-      queryKey: hydrologyQueryKeys.dashboard(pltaId),
+      queryKey: hydrologyQueryKeys.dashboardRoot(pltaId),
     });
   };
 }

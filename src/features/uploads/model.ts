@@ -1,6 +1,6 @@
 export interface UploadHistoryItem {
   filename: string;
-  dataType: 'Volume Efektif' | 'RTOW';
+  dataType: 'Volume Efektif';
   period: string;
   uploadedAt: string;
   rows: number;
@@ -13,44 +13,19 @@ export interface ElevationPoint {
   area: number;
 }
 
-export interface CreateElevationInput {
+export interface UploadElevationExcelInput {
   pltaId: string;
   year: number;
-  minElevation: number;
-  maxElevation: number;
-  points: ElevationPoint[];
+  file: File;
+  publish: boolean;
 }
 
-export interface ElevationUploadResult extends CreateElevationInput {
+export interface ElevationUploadResult {
   id: string;
-  status: string;
+  pltaId: string;
+  year: number;
+  status: 'draft' | 'published';
+  minElevation: number | null;
+  maxElevation: number | null;
   points: Array<ElevationPoint & { id: string }>;
-}
-
-export interface RTOWEntry {
-  tanggal: string;
-  targetElevasi: number;
-}
-
-export interface CreateRTOWInput {
-  pltaId: string;
-  tahun: number;
-  entries: RTOWEntry[];
-}
-
-export interface RTOWUploadResult extends CreateRTOWInput {
-  id: string;
-  entries: Array<RTOWEntry & { id: string }>;
-}
-
-export interface ParsedElevationWorkbook {
-  year: number;
-  minElevation: number;
-  maxElevation: number;
-  points: ElevationPoint[];
-}
-
-export interface ParsedRTOWWorkbook {
-  tahun: number;
-  entries: RTOWEntry[];
 }

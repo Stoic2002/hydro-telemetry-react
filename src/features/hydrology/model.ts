@@ -1,58 +1,45 @@
 export type NullableMetric = number | null;
 
-export interface DailyUpstreamHydrology {
-  targetTma: NullableMetric;
-  targetVolume: NullableMetric;
-  reservoirVolume: NullableMetric;
-  spillwayTmaLimit: NullableMetric;
-  molTmaLimit: NullableMetric;
-  reservoirTma: NullableMetric;
-  reservoirTmaTime: string | null;
-  inflow: NullableMetric;
-  upstreamRainfall: NullableMetric;
-  upstreamTurbidity: NullableMetric;
-  effectiveVolumeToTarget: NullableMetric;
-  effectiveVolumeToMol: NullableMetric;
-  availableEnergyToTargetMwh: NullableMetric;
-  availableEnergyToMolMwh: NullableMetric;
-  fullLoadServiceHours: NullableMetric;
+export type DashboardMetricSource = 'measured' | 'derived' | 'plan' | 'constant';
+
+export interface DashboardStationMetric {
+  station: string;
+  label: string;
+  value: NullableMetric;
+  time: string | null;
 }
 
-export interface DailyDamHydrology {
-  plannedTurbineDischarge: NullableMetric;
-  plannedSpillwayDischarge: NullableMetric;
-  plannedHjvDischarge: NullableMetric;
-  turbineDischargeT1: NullableMetric;
-  turbineDischargeT2: NullableMetric;
-  spillwayDischarge: NullableMetric;
-  hjvDischarge: NullableMetric;
-  deltaHeadCm: NullableMetric;
+export interface DashboardMetric {
+  value: NullableMetric;
+  unit: string | null;
+  label: string;
+  time: string | null;
+  source: DashboardMetricSource;
+  stations: DashboardStationMetric[] | null;
 }
 
-export interface DailyDownstreamHydrology {
-  tailraceTma: NullableMetric;
-  headM: NullableMetric;
-  turbineEfficiency1: NullableMetric;
-  turbineEfficiency2: NullableMetric;
-  downstreamTurbidity: NullableMetric;
-}
+export type DashboardMetricGroup = Record<string, DashboardMetric>;
 
 export interface DailyHydrology {
   date: string;
-  upstream: DailyUpstreamHydrology;
-  dam: DailyDamHydrology;
-  downstream: DailyDownstreamHydrology;
+  constants: Record<string, unknown> | null;
+  upstream: DashboardMetricGroup;
+  dam: DashboardMetricGroup;
+  downstream: DashboardMetricGroup;
   pendingFormulas: string[];
 }
 
 export interface PLTAHydrologyDashboard {
   pltaId: string;
+  pltaCode: string;
+  pltaName: string;
+  constants: Record<string, unknown> | null;
   monthly: MonthlyHydrology | null;
   daily: DailyHydrology | null;
 }
 
 export interface MonthlyHydrology {
-  id: string;
+  id: string | null;
   pltaId: string;
   year: number;
   month: number;

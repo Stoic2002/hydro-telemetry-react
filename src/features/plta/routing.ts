@@ -7,7 +7,6 @@ export type PLTADashboardPage =
   | 'trends'
   | 'laporan'
   | 'input-ghw'
-  | 'data-input-operator'
   | 'user-management'
   | 'account';
 

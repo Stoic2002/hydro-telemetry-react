@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { MONITORING_PARAMETERS } from '../model';
 
-export const monitoringParameterSchema = z.enum(MONITORING_PARAMETERS);
+const monitoringParameterSchema = z.enum(MONITORING_PARAMETERS);
 
 export const apiMonitoringParameterLatestSchema = z.object({
   parameter: monitoringParameterSchema,
@@ -30,4 +30,3 @@ export type ApiMonitoringParameterLatest = z.infer<
 export type ApiPLTALatestMonitoring = z.infer<
   typeof apiPLTALatestMonitoringSchema
 >;
-export type ApiMonitoringEvent = z.infer<typeof apiMonitoringEventSchema>;

@@ -19,4 +19,3 @@ export const paginatedUsersSchema = z.object({
 });
 
 export type ApiUser = z.infer<typeof apiUserSchema>;
-export type ApiPaginatedUsers = z.infer<typeof paginatedUsersSchema>;

@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../api/http';
+import { apiRequest, createApiResponseParser } from '../../../api/http';
 import type { TelemetryUploadResult } from '../model';
 import type { TelemetryUploadRepository } from './telemetry-upload-repository';
 import {
@@ -6,20 +6,9 @@ import {
   type ApiTelemetryUploadResult,
 } from './schemas';
 
-function parseResponse(
-  payload: unknown,
-  endpoint: string,
-): ApiTelemetryUploadResult {
-  const result = apiTelemetryUploadResultSchema.safeParse(payload);
-  if (result.success) return result.data;
-
-  throw new ApiError('Respons server tidak sesuai kontrak upload telemetri', {
-    status: 502,
-    statusText: 'Invalid API Response',
-    details: result.error.flatten(),
-    url: endpoint,
-  });
-}
+const parseResponse = createApiResponseParser(
+  'Respons server tidak sesuai kontrak upload telemetri',
+);
 
 function mapResult(result: ApiTelemetryUploadResult): TelemetryUploadResult {
   return {
@@ -43,7 +32,7 @@ export const httpTelemetryUploadRepository: TelemetryUploadRepository = {
       },
     });
 
-    return mapResult(parseResponse(payload, endpoint));
+    return mapResult(parseResponse(payload, apiTelemetryUploadResultSchema, endpoint));
   },
 
   async uploadExcel(input) {
@@ -59,6 +48,6 @@ export const httpTelemetryUploadRepository: TelemetryUploadRepository = {
       body: formData,
     });
 
-    return mapResult(parseResponse(payload, endpoint));
+    return mapResult(parseResponse(payload, apiTelemetryUploadResultSchema, endpoint));
   },
 };

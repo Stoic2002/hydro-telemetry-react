@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    allowedHosts: ['dad-enhanced-walking-sole.trycloudflare.com'],
     watch: {
       ignored: ['**/.codebase-memory/**'],
     },

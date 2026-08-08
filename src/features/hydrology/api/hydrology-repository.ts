@@ -13,6 +13,7 @@ export interface HydrologyRequestOptions {
 export interface HydrologyRepository {
   getPLTADashboard(
     pltaId: string,
+    date?: string,
     options?: HydrologyRequestOptions,
   ): Promise<PLTAHydrologyDashboard>;
   listMonthly(

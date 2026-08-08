@@ -61,7 +61,7 @@ async function fetchPlantCatalog(): Promise<Plant[]> {
   return [...plantsById.values()];
 }
 
-export const pltaQueryKeys = {
+const pltaQueryKeys = {
   all: ['plta'] as const,
   riverBasins: () => [...pltaQueryKeys.all, 'river-basins'] as const,
   riverBasinList: (params: ListParams) => (
@@ -70,9 +70,6 @@ export const pltaQueryKeys = {
   lists: () => [...pltaQueryKeys.all, 'list'] as const,
   list: (params: ListParams) => [...pltaQueryKeys.lists(), params] as const,
   catalog: () => [...pltaQueryKeys.lists(), 'catalog'] as const,
-  byRiverBasin: (wsId: string, params: ListParams) => (
-    [...pltaQueryKeys.riverBasins(), wsId, 'plta', params] as const
-  ),
   details: () => [...pltaQueryKeys.all, 'detail'] as const,
   detail: (pltaId: string) => [...pltaQueryKeys.details(), pltaId] as const,
   tags: (pltaId: string, params: PlantTagListParams) => (
@@ -107,18 +104,6 @@ export function usePlantCatalogQuery(enabled = true) {
     queryKey: pltaQueryKeys.catalog(),
     queryFn: fetchPlantCatalog,
     enabled,
-    staleTime: CATALOG_STALE_TIME,
-  });
-}
-
-export function usePLTAsByRiverBasinQuery(wsId: string, params: ListParams) {
-  const normalizedParams = normalizeListParams(params);
-
-  return useQuery({
-    queryKey: pltaQueryKeys.byRiverBasin(wsId, normalizedParams),
-    queryFn: () => pltaRepository.listByRiverBasin(wsId, normalizedParams),
-    enabled: Boolean(wsId),
-    placeholderData: keepPreviousData,
     staleTime: CATALOG_STALE_TIME,
   });
 }

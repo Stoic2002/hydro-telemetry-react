@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const plantTagProtocolSchema = z.enum([
+const plantTagProtocolSchema = z.enum([
   'opcua',
   'modbus',
   'sql',
