@@ -31,7 +31,7 @@ import {
   type TrendResolution,
   type TrendSeries,
 } from '../../features/trends';
-import { formatNumber } from '../../utils/formatters';
+import { formatNumber } from '../../shared/utils/number';
 
 interface TrendCardProps {
   title: string;

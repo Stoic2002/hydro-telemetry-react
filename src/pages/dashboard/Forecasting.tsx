@@ -28,7 +28,7 @@ import {
 } from '../../features/forecasting';
 import { useTrendQuery } from '../../features/trends';
 import { useNotificationStore } from '../../store/notification-store';
-import { formatNumber } from '../../utils/formatters';
+import { formatNumber } from '../../shared/utils/number';
 
 interface ForecastChartDatum {
   time: string;

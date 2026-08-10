@@ -10,7 +10,7 @@ import type {
 import { usePlantCatalogQuery } from '../../features/plta/api/queries';
 import { getPLTAErrorMessage } from '../../features/plta/error';
 import { getPlantDisplayName } from '../../features/plta/presentation';
-import { formatMetric } from '../../utils/formatters';
+import { formatMetric } from '../../shared/utils/number';
 import MapSkeleton from '../skeletons/MapSkeleton';
 
 interface JavaMapProps {
