@@ -1,5 +1,6 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, useMapContext } from 'react-simple-maps';
+import { CloudRain } from 'lucide-react';
 import type {
   Feature,
   FeatureCollection,
@@ -15,6 +16,7 @@ import MapSkeleton from '../skeletons/MapSkeleton';
 
 interface JavaMapProps {
   onPLTAClick: (pltaId: string) => void;
+  showPrecipitation?: boolean;
   projectionConfig?: {
     center?: [number, number];
     rotate?: [number, number, number];
@@ -36,11 +38,78 @@ const DEFAULT_PROJECTION = {
   center: [110.10, -7.42] as [number, number],
 };
 
+const MAP_VIEWBOX = { width: 800, height: 600 } as const;
+
 const MAP_LAYER_URLS = {
   province: '/indonesia-provinces.json',
   regencies: '/central-java-regencies.geojson',
   rivers: '/central-java-rivers.geojson',
 } as const;
+
+const RAIN_VIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json';
+const RAIN_VIEWER_TILE_HOST = 'https://tilecache.rainviewer.com';
+const RAIN_RADAR_ZOOM = 7;
+const CENTRAL_JAVA_RADAR_BOUNDS = {
+  west: 108,
+  east: 112.2,
+  north: -5.4,
+  south: -8.6,
+} as const;
+
+interface RainViewerFrame {
+  time: number;
+  path: string;
+}
+
+interface RainViewerWeatherMaps {
+  radar?: {
+    past?: RainViewerFrame[];
+  };
+}
+
+interface RadarTile {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+function longitudeToTileX(longitude: number, zoom: number) {
+  return Math.floor(((longitude + 180) / 360) * (2 ** zoom));
+}
+
+function latitudeToTileY(latitude: number, zoom: number) {
+  const latitudeRadians = latitude * Math.PI / 180;
+  return Math.floor(
+    ((1 - Math.asinh(Math.tan(latitudeRadians)) / Math.PI) / 2) * (2 ** zoom),
+  );
+}
+
+function tileXToLongitude(x: number, zoom: number) {
+  return (x / (2 ** zoom)) * 360 - 180;
+}
+
+function tileYToLatitude(y: number, zoom: number) {
+  const mercatorY = Math.PI * (1 - (2 * y) / (2 ** zoom));
+  return Math.atan(Math.sinh(mercatorY)) * 180 / Math.PI;
+}
+
+function createRadarTiles(): RadarTile[] {
+  const firstX = longitudeToTileX(CENTRAL_JAVA_RADAR_BOUNDS.west, RAIN_RADAR_ZOOM);
+  const lastX = longitudeToTileX(CENTRAL_JAVA_RADAR_BOUNDS.east, RAIN_RADAR_ZOOM);
+  const firstY = latitudeToTileY(CENTRAL_JAVA_RADAR_BOUNDS.north, RAIN_RADAR_ZOOM);
+  const lastY = latitudeToTileY(CENTRAL_JAVA_RADAR_BOUNDS.south, RAIN_RADAR_ZOOM);
+  const tiles: RadarTile[] = [];
+
+  for (let x = firstX; x <= lastX; x += 1) {
+    for (let y = firstY; y <= lastY; y += 1) {
+      tiles.push({ x, y, zoom: RAIN_RADAR_ZOOM });
+    }
+  }
+
+  return tiles;
+}
+
+const CENTRAL_JAVA_RADAR_TILES = createRadarTiles();
 
 interface RiverProperties {
   hyrivId: number;
@@ -120,13 +189,72 @@ function RiverLayer({
   );
 }
 
-export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }: JavaMapProps) {
+function RainRadarLayer({
+  framePath,
+  clipPathId,
+}: {
+  framePath: string;
+  clipPathId: string;
+}) {
+  const { projection } = useMapContext();
+
+  return (
+    <g
+      clipPath={`url(#${clipPathId})`}
+      aria-label="Presipitasi radar terbaru"
+      opacity={0.72}
+      pointerEvents="none"
+    >
+      {CENTRAL_JAVA_RADAR_TILES.map((tile) => {
+        const northWest = projection([
+          tileXToLongitude(tile.x, tile.zoom),
+          tileYToLatitude(tile.y, tile.zoom),
+        ]);
+        const southEast = projection([
+          tileXToLongitude(tile.x + 1, tile.zoom),
+          tileYToLatitude(tile.y + 1, tile.zoom),
+        ]);
+
+        if (!northWest || !southEast) return null;
+
+        const width = southEast[0] - northWest[0];
+        const height = southEast[1] - northWest[1];
+        const tileUrl = `${RAIN_VIEWER_TILE_HOST}${framePath}/256/${tile.zoom}/${tile.x}/${tile.y}/2/1_1.png`;
+
+        return (
+          <image
+            key={`${tile.zoom}-${tile.x}-${tile.y}`}
+            href={tileUrl}
+            x={northWest[0] - 0.5}
+            y={northWest[1] - 0.5}
+            width={width + 1}
+            height={height + 1}
+            preserveAspectRatio="none"
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+export default function JavaMap({
+  onPLTAClick,
+  customMarkers,
+  projectionConfig,
+  showPrecipitation = false,
+}: JavaMapProps) {
   const plantsQuery = usePlantCatalogQuery(!customMarkers);
   const pltaList = plantsQuery.data ?? [];
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mapLayers, setMapLayers] = useState<MapLayers | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mapSize, setMapSize] = useState<{ width: number; height: number }>(MAP_VIEWBOX);
+  const [radarFrame, setRadarFrame] = useState<RainViewerFrame | null>(null);
+  const [radarStatus, setRadarStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [isPrecipitationVisible, setIsPrecipitationVisible] = useState(showPrecipitation);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const clipPathId = `central-java-map-${useId().replace(/:/g, '')}`;
+  const isMapReady = Boolean(mapLayers && (customMarkers || !plantsQuery.isPending));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -153,6 +281,70 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (!showPrecipitation) return undefined;
+
+    const controller = new AbortController();
+
+    const loadLatestRadar = async () => {
+      setRadarStatus((current) => (current === 'ready' ? current : 'loading'));
+
+      try {
+        const response = await fetch(RAIN_VIEWER_API_URL, {
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error('Radar presipitasi tidak tersedia');
+
+        const weatherMaps = await response.json() as RainViewerWeatherMaps;
+        const latestFrame = weatherMaps.radar?.past?.at(-1);
+        if (!latestFrame || !/^\/v2\/radar\/[a-f0-9]+$/.test(latestFrame.path)) {
+          throw new Error('Data radar presipitasi tidak valid');
+        }
+
+        setRadarFrame(latestFrame);
+        setRadarStatus('ready');
+      } catch (radarError: unknown) {
+        if (radarError instanceof DOMException && radarError.name === 'AbortError') return;
+        setRadarStatus('error');
+      }
+    };
+
+    void loadLatestRadar();
+    const refreshInterval = window.setInterval(() => void loadLatestRadar(), 10 * 60 * 1000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(refreshInterval);
+    };
+  }, [showPrecipitation]);
+
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container || !isMapReady) return undefined;
+
+    const updateMapSize = ({ width, height }: { width: number; height: number }) => {
+      const nextSize = {
+        width: Math.max(1, Math.round(width)),
+        height: Math.max(1, Math.round(height)),
+      };
+
+      setMapSize((current) => (
+        current.width === nextSize.width && current.height === nextSize.height
+          ? current
+          : nextSize
+      ));
+    };
+
+    updateMapSize(container.getBoundingClientRect());
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) updateMapSize(entry.contentRect);
+    });
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [isMapReady]);
+
   const hoveredPLTA = !customMarkers && hoveredId ? pltaList.find((p) => p.id === hoveredId) : null;
   const hoveredCustom = customMarkers && hoveredId ? customMarkers.find((m) => m.id === hoveredId) : null;
 
@@ -178,6 +370,14 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
   if (!mapLayers || (!customMarkers && plantsQuery.isPending)) return <MapSkeleton />;
 
   const currentProjection = projectionConfig || DEFAULT_PROJECTION;
+  const viewportScale = Math.min(
+    mapSize.width / MAP_VIEWBOX.width,
+    mapSize.height / MAP_VIEWBOX.height,
+  );
+  const responsiveProjection = {
+    ...currentProjection,
+    scale: (currentProjection.scale ?? DEFAULT_PROJECTION.scale) * viewportScale,
+  };
   const centralJavaProvince = mapLayers.province.features.find((feature) => {
     const provinceName = feature.properties?.Propinsi || feature.properties?.NAME_1 || '';
     return provinceName === 'JAWA TENGAH';
@@ -192,11 +392,16 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
   }
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-transparent select-none">
+    <div
+      ref={mapContainerRef}
+      className="relative flex h-[clamp(280px,55vw,560px)] min-w-0 w-full items-center justify-center overflow-hidden bg-transparent select-none"
+    >
       <ComposableMap
+        width={mapSize.width}
+        height={mapSize.height}
         projection="geoMercator"
-        projectionConfig={currentProjection}
-        className="w-full h-[500px]"
+        projectionConfig={responsiveProjection}
+        className="block h-full w-full"
       >
         <defs>
           <clipPath id={clipPathId}>
@@ -229,6 +434,10 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
             })
           }
         </Geographies>
+
+        {showPrecipitation && isPrecipitationVisible && radarStatus === 'ready' && radarFrame && (
+          <RainRadarLayer framePath={radarFrame.path} clipPathId={clipPathId} />
+        )}
 
         <Geographies geography={mapLayers.regencies}>
           {({ geographies }) =>
@@ -326,12 +535,72 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
         ))}
       </ComposableMap>
 
+      {showPrecipitation && (
+        <div className="absolute right-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-end gap-1.5 sm:right-4 sm:top-4">
+          <button
+            type="button"
+            aria-pressed={isPrecipitationVisible}
+            onClick={() => setIsPrecipitationVisible((current) => !current)}
+            className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold backdrop-blur-sm transition-colors ${
+              isPrecipitationVisible
+                ? 'border-sky-300 bg-sky-50/95 text-sky-800 hover:bg-sky-100'
+                : 'border-slate-200 bg-white/95 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <CloudRain className="h-4 w-4" aria-hidden="true" />
+            <span>Presipitasi</span>
+            <span
+              className={`h-2 w-2 rounded-full ${
+                radarStatus === 'ready'
+                  ? 'bg-emerald-500'
+                  : radarStatus === 'error'
+                    ? 'bg-amber-500'
+                    : 'animate-pulse bg-sky-400'
+              }`}
+              aria-hidden="true"
+            />
+          </button>
+
+          {isPrecipitationVisible && (
+            <div
+              role="status"
+              className="rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1.5 text-right text-[10px] font-semibold text-slate-500 backdrop-blur-sm"
+            >
+              <p>
+                {radarStatus === 'ready' && radarFrame
+                  ? `Radar ${new Intl.DateTimeFormat('id-ID', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      timeZone: 'Asia/Jakarta',
+                    }).format(new Date(radarFrame.time * 1000))} WIB`
+                  : radarStatus === 'error'
+                    ? 'Radar gratis sedang tidak tersedia'
+                    : 'Memuat radar terbaru...'}
+              </p>
+              {radarStatus === 'ready' && (
+                <>
+                  <p className="font-normal text-slate-400">Area berwarna = hujan terdeteksi</p>
+                  <a
+                    href="https://www.rainviewer.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-0.5 block font-medium text-sky-700 underline decoration-sky-300 underline-offset-2"
+                  >
+                    Data radar: RainViewer
+                  </a>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Info Panel Overlay (PLTA) - No Shadow! */}
       {hoveredPLTA && (
-        <div className="absolute top-4 left-4 bg-white border border-slate-200 rounded-2xl p-4 min-w-[250px] pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-bold text-slate-800 font-sans text-sm">{hoveredPLTA.name}</h4>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-2xl border border-slate-200 bg-white p-3 animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[250px] sm:p-4">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h4 className="min-w-0 font-sans text-sm font-bold text-slate-800">{hoveredPLTA.name}</h4>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
               hoveredPLTA.isActive
                 ? 'bg-emerald-100 text-emerald-700'
                 : 'bg-slate-100 text-slate-600'
@@ -340,17 +609,17 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
             </span>
           </div>
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between gap-3">
               <span className="text-xs text-slate-500">Kode</span>
               <span className="text-sm font-mono font-bold text-slate-800">{hoveredPLTA.code}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between gap-3">
               <span className="text-xs text-slate-500">Kapasitas</span>
               <span className="text-sm font-mono font-bold text-slate-800">{formatMetric(hoveredPLTA.capacityMw, 1)} MW</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between gap-3">
               <span className="text-xs text-slate-500">Koordinat</span>
-              <span className="text-[11px] font-mono font-semibold text-slate-700">
+              <span className="text-right text-[11px] font-mono font-semibold text-slate-700">
                 {hoveredPLTA.latitude?.toFixed(4)}, {hoveredPLTA.longitude?.toFixed(4)}
               </span>
             </div>
@@ -363,7 +632,7 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
 
       {/* Info Panel Overlay (Custom AWLR/Rain Sensors) - No Shadow! */}
       {hoveredCustom && (
-        <div className="absolute top-4 left-4 bg-white border border-slate-200 rounded-xl p-3 min-w-[180px] pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-xl border border-slate-200 bg-white p-3 animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[180px]">
           <h4 className="font-bold text-slate-800 text-sm mb-1">{hoveredCustom.name}</h4>
           <p className="text-xs font-mono font-bold text-pln-teal">{hoveredCustom.valueLabel}</p>
         </div>
@@ -375,7 +644,7 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
         </div>
       )}
       
-      <div className="absolute bottom-5 right-5 flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white/95 p-3 backdrop-blur-sm">
+      <div className="absolute bottom-2 right-2 flex max-w-[calc(100%-1rem)] flex-col gap-1.5 rounded-xl border border-slate-200 bg-white/95 p-2 backdrop-blur-sm sm:bottom-5 sm:right-5 sm:gap-2.5 sm:p-3">
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded-sm border border-sky-400 bg-sky-100"></div>
           <span className="text-[10px] font-bold text-slate-600 uppercase">Jawa Tengah</span>
@@ -388,11 +657,17 @@ export default function JavaMap({ onPLTAClick, customMarkers, projectionConfig }
           <div className="h-0.5 w-4 rounded-full bg-sky-600"></div>
           <span className="text-[10px] font-bold uppercase text-slate-600">Jaringan Sungai</span>
         </div>
+        {showPrecipitation && isPrecipitationVisible && radarStatus === 'ready' && (
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-4 rounded-sm bg-gradient-to-r from-sky-300 via-amber-300 to-fuchsia-500"></div>
+            <span className="text-[10px] font-bold uppercase text-slate-600">Radar Hujan</span>
+          </div>
+        )}
         <span
-          className="max-w-[210px] border-t border-slate-100 pt-2 text-[9px] font-medium leading-3.5 text-slate-400"
+          className="hidden max-w-[210px] border-t border-slate-100 pt-2 text-[9px] font-medium leading-3.5 text-slate-400 sm:block"
           title="Batas wilayah: BIG · Jaringan sungai: HydroRIVERS/HydroSHEDS"
         >
-          Batas: BIG · Sungai: HydroRIVERS
+          Batas: BIG · Sungai: HydroRIVERS{showPrecipitation && radarStatus === 'ready' ? ' · Radar: RainViewer' : ''}
         </span>
       </div>
     </div>

@@ -28,10 +28,11 @@ export default function Overview() {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1480px] items-center justify-center overflow-hidden">
+      <div className="mx-auto flex min-w-0 w-full max-w-[1480px] items-center justify-center overflow-hidden">
         <JavaMap
           onPLTAClick={handlePLTAClick}
           projectionConfig={OVERVIEW_MAP_PROJECTION}
+          showPrecipitation
         />
       </div>
     </div>

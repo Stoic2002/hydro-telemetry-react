@@ -345,7 +345,6 @@ export default function Reports() {
                       <p className="mt-1 max-w-md truncate text-xs text-slate-400">
                         {REPORT_TYPES[report.type]} · {report.parameters?.map(formatParameterLabel).join(', ') || 'semua parameter'}
                       </p>
-                      {report.error && <p className="mt-1 text-xs text-red-600">{report.error}</p>}
                     </td>
                     <td className="px-4 py-4 text-sm text-slate-600">{formatDate(report.periodStart)} – {formatDate(report.periodEnd)}</td>
                     <td className="px-4 py-4 text-sm text-slate-500">{formatDateTime(report.createdAt)}</td>

@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
-  LoaderCircle,
-  RefreshCw,
 } from 'lucide-react';
 import {
   Area,
@@ -15,19 +13,16 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import Button from '../../components/atoms/Button';
 import Select from '../../components/atoms/Select';
 import Skeleton from '../../components/atoms/Skeleton';
 import {
   FORECASTING_PLTA_ID,
   FORECASTING_PLTA_NAME,
   useForecastQuery,
-  useRunForecastMutation,
   type ForecastHorizon,
   type ForecastParameter,
 } from '../../features/forecasting';
 import { useTrendQuery } from '../../features/trends';
-import { useNotificationStore } from '../../store/notification-store';
 import { formatNumber } from '../../shared/utils/number';
 
 interface ForecastChartDatum {
@@ -122,12 +117,10 @@ function ForecastTooltip({ active, payload, unit }: ForecastTooltipProps) {
 
 export default function Forecasting() {
   const pltaId = FORECASTING_PLTA_ID;
-  const addToast = useNotificationStore((state) => state.addToast);
   const [parameter, setParameter] = useState<ForecastParameter>('inflow');
   const [horizon, setHorizon] = useState<ForecastHorizon>(24);
   const forecastInput = { pltaId, parameter, horizon };
   const forecastQuery = useForecastQuery(forecastInput);
-  const runMutation = useRunForecastMutation();
 
   const actualRange = useMemo(() => {
     const to = new Date();
@@ -177,37 +170,12 @@ export default function Forecasting() {
     );
   }, [actualQuery.data?.points, series?.points]);
 
-  const runForecast = async () => {
-    try {
-      const result = await runMutation.mutateAsync(forecastInput);
-      addToast({
-        type: 'success',
-        message: `Prediksi ulang masuk antrean backend (${result.status}).`,
-      });
-      window.setTimeout(() => void forecastQuery.refetch(), 5_000);
-    } catch (error) {
-      addToast({ type: 'error', message: errorMessage(error) });
-    }
-  };
-
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+      <header>
         <div>
           <h1 className="page-title">Forecasting</h1>
           <p className="page-description">Prediksi ML terbaru untuk PLTA {FORECASTING_PLTA_NAME}</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button
-            type="button"
-            variant="secondary"
-            leftIcon={runMutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            disabled={runMutation.isPending}
-            onClick={() => void runForecast()}
-            className="h-11 whitespace-nowrap"
-          >
-            Prediksi ulang
-          </Button>
         </div>
       </header>
 
@@ -230,7 +198,7 @@ export default function Forecasting() {
 
       {forecastQuery.isLoading ? (
         <div className="flex flex-col gap-5" role="status" aria-label="Memuat Forecasting">
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }, (_, index) => <Skeleton key={`forecast-kpi-${index}`} className="h-24 rounded-xl" />)}
           </div>
           <Skeleton className="h-[430px] rounded-xl" />
@@ -251,7 +219,7 @@ export default function Forecasting() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
                 label: 'Prediksi awal',

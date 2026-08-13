@@ -257,7 +257,12 @@ export default function Telemetering() {
   return (
     <div className="flex flex-1 flex-col gap-5 animate-in fade-in duration-500">
       <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <h1 className="page-title">Telemetering</h1>
+        <div>
+          <h1 className="page-title">Telemetering</h1>
+          <p className="page-description">
+            Pantau kondisi hidrologi harian dan bulanan PLTA {plta.shortName}
+          </p>
+        </div>
         <PlantSwitcher page="telemetering" />
       </header>
 
