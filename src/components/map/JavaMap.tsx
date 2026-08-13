@@ -7,6 +7,7 @@ import type {
   Geometry,
   GeoJsonProperties,
   LineString,
+  Position,
 } from 'geojson';
 import { usePlantCatalogQuery } from '../../features/plta/api/queries';
 import { getPLTAErrorMessage } from '../../features/plta/error';
@@ -111,6 +112,64 @@ function createRadarTiles(): RadarTile[] {
 
 const CENTRAL_JAVA_RADAR_TILES = createRadarTiles();
 
+const CITY_LABEL_OFFSETS: Record<string, { x: number; y: number }> = {
+  'Kota Magelang': { x: -36, y: 11 },
+  'Kota Pekalongan': { x: -4, y: -15 },
+  'Kota Salatiga': { x: 13, y: 12 },
+  'Kota Semarang': { x: 13, y: -14 },
+  'Kota Surakarta': { x: 15, y: -10 },
+  'Kota Tegal': { x: -14, y: -13 },
+};
+
+function getRingArea2(ring: Position[]) {
+  let area2 = 0;
+
+  for (let index = 0; index < ring.length - 1; index += 1) {
+    const current = ring[index];
+    const next = ring[index + 1];
+    area2 += current[0] * next[1] - next[0] * current[1];
+  }
+
+  return area2;
+}
+
+function getLabelCoordinate(geometry: Geometry): [number, number] | null {
+  const outerRings = geometry.type === 'Polygon'
+    ? geometry.coordinates.slice(0, 1)
+    : geometry.type === 'MultiPolygon'
+      ? geometry.coordinates.map((polygon) => polygon[0])
+      : [];
+  const ring = outerRings.reduce<Position[] | null>((largest, candidate) => {
+    if (!candidate?.length) return largest;
+    if (!largest) return candidate;
+    return Math.abs(getRingArea2(candidate)) > Math.abs(getRingArea2(largest))
+      ? candidate
+      : largest;
+  }, null);
+
+  if (!ring?.length) return null;
+
+  const area2 = getRingArea2(ring);
+  if (Math.abs(area2) < Number.EPSILON) {
+    const longitude = ring.reduce((sum, point) => sum + point[0], 0) / ring.length;
+    const latitude = ring.reduce((sum, point) => sum + point[1], 0) / ring.length;
+    return [longitude, latitude];
+  }
+
+  let longitudeSum = 0;
+  let latitudeSum = 0;
+
+  for (let index = 0; index < ring.length - 1; index += 1) {
+    const current = ring[index];
+    const next = ring[index + 1];
+    const crossProduct = current[0] * next[1] - next[0] * current[1];
+    longitudeSum += (current[0] + next[0]) * crossProduct;
+    latitudeSum += (current[1] + next[1]) * crossProduct;
+  }
+
+  return [longitudeSum / (3 * area2), latitudeSum / (3 * area2)];
+}
+
 interface RiverProperties {
   hyrivId: number;
   nextDown: number;
@@ -185,6 +244,78 @@ function RiverLayer({
         strokeWidth={2.1}
         vectorEffect="non-scaling-stroke"
       />
+    </g>
+  );
+}
+
+function RegencyLabelLayer({
+  geography,
+  mapWidth,
+}: {
+  geography: FeatureCollection<Geometry, GeoJsonProperties>;
+  mapWidth: number;
+}) {
+  const { projection } = useMapContext();
+  const responsiveFactor = mapWidth < 480 ? 0.62 : mapWidth < 768 ? 0.78 : 1;
+  const fontSize = mapWidth < 480 ? 5.8 : mapWidth < 768 ? 7 : 8.5;
+
+  return (
+    <g aria-label="Nama kabupaten dan kota di Jawa Tengah" pointerEvents="none">
+      {geography.features.map((feature, index) => {
+        const name = String(feature.properties?.namobj || feature.properties?.wadmkk || '').trim();
+        if (!name) return null;
+
+        const labelCoordinate = getLabelCoordinate(feature.geometry);
+        const centroid = labelCoordinate ? projection(labelCoordinate) : null;
+        if (!centroid || !Number.isFinite(centroid[0]) || !Number.isFinite(centroid[1])) return null;
+        const [centroidX, centroidY] = centroid;
+
+        const offset = CITY_LABEL_OFFSETS[name];
+        const labelX = centroidX + (offset?.x ?? 0) * responsiveFactor;
+        const labelY = centroidY + (offset?.y ?? 0) * responsiveFactor;
+        const isCity = name.startsWith('Kota ');
+        const cityName = isCity ? name.slice(5) : name;
+
+        return (
+          <g key={`${name}-${index}`}>
+            {offset && (
+              <line
+                x1={centroidX}
+                y1={centroidY}
+                x2={labelX}
+                y2={labelY}
+                stroke="#64748b"
+                strokeOpacity={0.72}
+                strokeWidth={0.65}
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+            <text
+              x={labelX}
+              y={labelY}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#334155"
+              fontFamily="ui-sans-serif, system-ui, sans-serif"
+              fontSize={fontSize}
+              fontWeight={700}
+              letterSpacing={0.08}
+              stroke="#ffffff"
+              strokeOpacity={0.94}
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+              paintOrder="stroke"
+            >
+              {isCity ? (
+                <>
+                  <tspan x={labelX} dy={-fontSize * 0.42} fontSize={fontSize * 0.72}>Kota</tspan>
+                  <tspan x={labelX} dy={fontSize * 0.92}>{cityName}</tspan>
+                </>
+              ) : name}
+            </text>
+          </g>
+        );
+      })}
     </g>
   );
 }
@@ -421,12 +552,13 @@ export default function JavaMap({
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
-                  fill="#e0f2fe"
-                  stroke="#38bdf8"
+                  fill={showPrecipitation && isPrecipitationVisible ? '#f1f5f9' : '#f8fafc'}
+                  stroke="#94a3b8"
                   strokeWidth={1.5}
+                  pointerEvents="none"
                   style={{
                     default: { outline: 'none' },
-                    hover: { fill: '#bae6fd', outline: 'none' },
+                    hover: { outline: 'none' },
                     pressed: { outline: 'none' },
                   }}
                 />
@@ -446,13 +578,14 @@ export default function JavaMap({
                 key={geo.rsmKey}
                 geography={geo}
                 aria-label={`Batas ${geo.properties?.namobj || geo.properties?.wadmkk || 'kabupaten/kota'}`}
-                fill="rgba(255, 255, 255, 0.02)"
+                fill="transparent"
                 stroke="#64748b"
                 strokeWidth={0.42}
                 vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
                 style={{
                   default: { outline: 'none' },
-                  hover: { fill: 'rgba(255, 255, 255, 0.32)', outline: 'none' },
+                  hover: { outline: 'none' },
                   pressed: { outline: 'none' },
                 }}
               />
@@ -461,6 +594,8 @@ export default function JavaMap({
         </Geographies>
 
         <RiverLayer geography={mapLayers.rivers} clipPathId={clipPathId} />
+
+        <RegencyLabelLayer geography={mapLayers.regencies} mapWidth={mapSize.width} />
 
         {/* Render PLTA Markers with their real geographic coordinates */}
         {!customMarkers && pltaList.map((plta) => {
@@ -646,7 +781,7 @@ export default function JavaMap({
       
       <div className="absolute bottom-2 right-2 flex max-w-[calc(100%-1rem)] flex-col gap-1.5 rounded-xl border border-slate-200 bg-white/95 p-2 backdrop-blur-sm sm:bottom-5 sm:right-5 sm:gap-2.5 sm:p-3">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-sm border border-sky-400 bg-sky-100"></div>
+          <div className="h-3 w-3 rounded-sm border border-slate-400 bg-slate-100"></div>
           <span className="text-[10px] font-bold text-slate-600 uppercase">Jawa Tengah</span>
         </div>
         <div className="flex items-center gap-2">
