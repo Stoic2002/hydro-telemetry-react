@@ -1,6 +1,6 @@
 import { useCallback, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Edit2, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit2, Plus, Search, Trash2, Users } from 'lucide-react';
 import {
   useDeleteUserMutation,
   useToggleUserStatusMutation,
@@ -15,28 +15,19 @@ import {
 } from '../../features/users/model';
 import { getPLTADashboardPath, useActivePLTAId } from '../../features/plta/routing';
 import UserFormSheet from '../../features/users/components/UserFormSheet';
+import RoleBadge from '../../features/users/components/RoleBadge';
 import { useAuthStore } from '../../store/auth-store';
 import { useNotificationStore } from '../../store/notification-store';
 import UserTableSkeleton from '../../components/skeletons/UserTableSkeleton';
-import Skeleton from '../../components/atoms/Skeleton';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import PageHeader from '../../components/ui/PageHeader';
+import EmptyState from '../../components/ui/EmptyState';
+import ErrorState from '../../components/ui/ErrorState';
+import RefetchBar from '../../components/ui/RefetchBar';
+import TablePagination from '../../components/ui/TablePagination';
+import Button from '../../components/atoms/Button';
 
 const PAGE_LIMIT = 10;
-
-function RoleBadge({ user }: { user: UserAccount }) {
-  const role = mapApiRoleToUIRole(user.role);
-  const className = user.role === 'admin'
-    ? 'bg-[#ecfeff] text-[#0891b2]'
-    : user.role === 'operator'
-      ? 'bg-[#fef3c7] text-[#b45309]'
-      : 'bg-[#f1f5f9] text-[#475569]';
-
-  return (
-    <span className={`${className} rounded-full px-2.5 py-[3px] font-sans text-xs font-semibold`}>
-      {role}
-    </span>
-  );
-}
 
 export default function UserManagement() {
   const addToast = useNotificationStore((state) => state.addToast);
@@ -111,111 +102,147 @@ export default function UserManagement() {
   const users = usersQuery.data?.items ?? [];
   const total = usersQuery.data?.total ?? 0;
   const totalPages = Math.max(usersQuery.data?.pages ?? 1, 1);
-  const firstItem = total === 0 ? 0 : (page - 1) * PAGE_LIMIT + 1;
-  const lastItem = Math.min(page * PAGE_LIMIT, total);
 
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex flex-col gap-1">
-          <h1 className="page-title">User Management</h1>
-          <p className="page-description">Kelola akun, peran, dan status pengguna aplikasi</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsCreateSheetOpen(true)}
-          className="flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl border-0 bg-[#0891b2] px-[18px] font-sans text-sm font-semibold text-white transition-colors hover:bg-[#0e7490]"
-        >
-          <Plus size={16} />
-          <span>Tambah User</span>
-        </button>
+      <PageHeader
+        title="User Management"
+        description="Kelola akun, peran, dan status pengguna aplikasi"
+        actions={(
+          <Button type="button" size="lg" leftIcon={<Plus size={16} />} onClick={() => setIsCreateSheetOpen(true)}>
+            Tambah User
+          </Button>
+        )}
+      />
+
+      <div className="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
+        <form onSubmit={applySearch} className="flex min-w-0 items-center gap-2 sm:w-80">
+          <div className="relative flex min-w-0 flex-1 items-center">
+            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-slate-400" />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              maxLength={100}
+              placeholder="Cari nama, username, atau email…"
+              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-white pr-3 pl-8.5 text-[12.5px] text-text-primary outline-none transition-[border-color,box-shadow] hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-slate-400"
+            />
+          </div>
+          <button
+            type="submit"
+            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-white px-3 text-[12.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Cari
+          </button>
+        </form>
+        {!usersQuery.isError && (
+          <span className="shrink-0 text-[11.5px] text-text-muted sm:ml-auto">{total} pengguna</span>
+        )}
       </div>
 
-      <section className="flex flex-col overflow-clip rounded-[14px] border border-[#e2e8f0] bg-white">
-        <form onSubmit={applySearch} className="flex items-center gap-2.5 border-b border-[#e2e8f0] px-5 py-3.5">
-          <Search size={16} className="shrink-0 text-[#94a3b8]" />
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            maxLength={100}
-            placeholder="Cari nama, username, atau email..."
-            className="w-full border-0 font-sans text-[13px] text-[#0f172a] outline-none placeholder:text-[#94a3b8]"
-          />
-          <button type="submit" className="h-8 cursor-pointer rounded-lg border-0 bg-slate-100 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-200">Cari</button>
-        </form>
-        <div className="h-0.5 bg-transparent">
-          {usersQuery.isFetching && !usersQuery.isLoading && <Skeleton className="h-full w-full" />}
-        </div>
+      <section className="flex flex-col overflow-clip rounded-md border border-border-subtle bg-white">
+        <RefetchBar isRefetching={usersQuery.isFetching && !usersQuery.isLoading} />
 
-        <div className="flex h-11 w-full items-center gap-4 border-b border-[#e2e8f0] bg-[#f8fafc] px-5">
-          <div className="flex-1 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">User</div>
-          <div className="w-[160px] shrink-0 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">Role</div>
-          <div className="w-[140px] shrink-0 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">Status</div>
-          <div className="w-24 shrink-0 text-xs font-semibold uppercase tracking-[0.72px] text-[#64748b]">Aksi</div>
+        <div className="flex h-9 w-full items-center gap-4 border-b border-border-subtle bg-surface-overlay px-5">
+          <div className="table-head-cell flex-1">User</div>
+          <div className="table-head-cell w-[160px] shrink-0">Role</div>
+          <div className="table-head-cell w-[140px] shrink-0">Status</div>
+          <div className="table-head-cell w-24 shrink-0">Aksi</div>
         </div>
 
         <div className="flex w-full flex-col">
           {usersQuery.isLoading ? (
             <UserTableSkeleton rows={PAGE_LIMIT} />
           ) : usersQuery.isError ? (
-            <div className="flex flex-col items-center gap-3 py-12 text-sm text-red-600">
-              <span>{getUserManagementErrorMessage(usersQuery.error)}</span>
-              <button type="button" onClick={() => void usersQuery.refetch()} className="cursor-pointer rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold">Coba Lagi</button>
-            </div>
+            <ErrorState
+              title="Daftar pengguna belum bisa dimuat"
+              description={getUserManagementErrorMessage(usersQuery.error)}
+              isRetrying={usersQuery.isFetching}
+              onRetry={() => void usersQuery.refetch()}
+              className="py-10"
+            />
           ) : users.length === 0 ? (
-            <div className="flex justify-center py-12 text-sm font-medium text-slate-400">Tidak ada pengguna yang ditemukan.</div>
-          ) : users.map((user) => (
-            <div key={user.id} className="flex w-full items-center gap-4 border-b border-b-[#f1f5f9] px-5 py-3.5 transition-colors hover:bg-slate-50/50">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e0f2fe] text-xs font-semibold text-[#0369a1]">{getUserInitials(user)}</div>
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium text-[#0f172a]">{getUserDisplayName(user)}</span>
-                  <span className="truncate text-xs text-[#94a3b8]">@{user.username}{user.email ? ` · ${user.email}` : ''}</span>
+            <EmptyState
+              icon={<Users size={19} />}
+              title={search ? 'Pengguna tidak ditemukan' : 'Belum ada pengguna'}
+              description={search
+                ? 'Coba kata kunci lain atau kosongkan pencarian.'
+                : 'Pengguna yang ditambahkan akan muncul di daftar ini.'}
+              className="py-10"
+            />
+          ) : users.map((user) => {
+            const isSelf = user.id === currentUser?.id;
+
+            return (
+              <div key={user.id} className={`flex w-full items-center gap-4 border-b border-b-surface-overlay px-5 py-3.5 transition-colors hover:bg-slate-50/50 ${isSelf ? 'bg-surface-base' : ''}`}>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className={`flex size-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                    isSelf
+                      ? 'border-cyan-200 bg-cyan-100 text-cyan-700'
+                      : 'border-border-subtle bg-surface-overlay text-slate-600'
+                  }`}
+                  >
+                    {getUserInitials(user)}
+                  </div>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-medium text-text-primary">{getUserDisplayName(user)}</span>
+                      {isSelf && (
+                        <span className="inline-flex h-[19px] shrink-0 items-center rounded-[5px] bg-surface-overlay px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-600">
+                          Akun Anda
+                        </span>
+                      )}
+                    </span>
+                    <span className="truncate font-mono text-[11.5px] text-text-muted">@{user.username}{user.email ? ` · ${user.email}` : ''}</span>
+                  </div>
+                </div>
+                <div className="flex w-[160px] shrink-0"><RoleBadge role={mapApiRoleToUIRole(user.role)} /></div>
+                <div className="flex w-[140px] shrink-0">
+                  <button
+                    type="button"
+                    disabled={toggleStatusMutation.isPending || deleteMutation.isPending || isSelf}
+                    onClick={() => void toggleUserStatus(user)}
+                    title={isSelf ? 'Kelola akun sendiri melalui Profil Saya' : 'Ubah status pengguna'}
+                    className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-medium text-text-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span className={`size-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-slate-300'}`} />
+                    {user.isActive ? 'Aktif' : 'Nonaktif'}
+                  </button>
+                </div>
+                <div className="flex w-24 shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => openEditSheet(user)}
+                    className="flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-white text-brand-primary-strong transition-colors hover:bg-cyan-50"
+                    title={isSelf ? 'Buka Profil Saya' : 'Edit pengguna'}
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleteMutation.isPending || isSelf}
+                    onClick={() => setUserToDelete(user)}
+                    title={isSelf ? 'Akun sendiri tidak dapat dihapus' : 'Hapus pengguna'}
+                    className="flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-white text-status-danger transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-slate-300"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
-              <div className="flex w-[160px] shrink-0"><RoleBadge user={user} /></div>
-              <div className="flex w-[140px] shrink-0">
-                <button
-                  type="button"
-                  disabled={toggleStatusMutation.isPending || deleteMutation.isPending || user.id === currentUser?.id}
-                  onClick={() => void toggleUserStatus(user)}
-                  title={user.id === currentUser?.id ? 'Kelola akun sendiri melalui Profil Saya' : 'Ubah status pengguna'}
-                  className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-medium text-[#334155] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span className={`size-2 rounded-full ${user.isActive ? 'bg-[#22c55e]' : 'bg-[#cbd5e1]'}`} />
-                  {user.isActive ? 'Aktif' : 'Nonaktif'}
-                </button>
-              </div>
-              <div className="flex w-24 shrink-0 items-center gap-1">
-                <button type="button" onClick={() => openEditSheet(user)} className="cursor-pointer border-0 bg-transparent p-1 text-[#64748b] transition-colors hover:text-[#0f172a]" title={user.id === currentUser?.id ? 'Buka Profil Saya' : 'Edit pengguna'}>
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  type="button"
-                  disabled={deleteMutation.isPending || user.id === currentUser?.id}
-                  onClick={() => setUserToDelete(user)}
-                  title={user.id === currentUser?.id ? 'Akun sendiri tidak dapat dihapus' : 'Hapus pengguna'}
-                  className="cursor-pointer border-0 bg-transparent p-1 text-red-500 transition-colors hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div className="flex items-center justify-between border-t border-[#f1f5f9] px-5 py-3">
-          <div className="text-xs text-[#94a3b8]">
-            {usersQuery.isFetching && !usersQuery.isLoading ? 'Memperbarui... · ' : ''}
-            Menampilkan {firstItem}–{lastItem} dari {total} user
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" disabled={page <= 1 || usersQuery.isFetching} onClick={() => setPage((current) => Math.max(current - 1, 1))} className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Halaman sebelumnya"><ChevronLeft size={15} /></button>
-            <span className="min-w-20 text-center text-xs font-semibold text-slate-600">{page} / {totalPages}</span>
-            <button type="button" disabled={page >= totalPages || usersQuery.isFetching} onClick={() => setPage((current) => Math.min(current + 1, totalPages))} className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Halaman berikutnya"><ChevronRight size={15} /></button>
-          </div>
-        </div>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={PAGE_LIMIT}
+          itemLabel="pengguna"
+          isBusy={usersQuery.isFetching}
+          onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
+          onNext={() => setPage((current) => Math.min(current + 1, totalPages))}
+        />
       </section>
 
       <UserFormSheet

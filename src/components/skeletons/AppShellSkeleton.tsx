@@ -12,16 +12,16 @@ export default function AppShellSkeleton({ embedded = false }: AppShellSkeletonP
       className={`flex bg-surface-base ${embedded ? 'min-h-[420px] w-full' : 'min-h-screen'}`}
     >
       <main className={`flex flex-1 flex-col gap-6 ${embedded ? 'py-1' : 'p-6'}`}>
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-6 w-44 rounded-lg" />
-          <Skeleton className="h-3 w-72 max-w-[70vw] rounded-md" />
+        <div className="flex flex-col gap-2 border-b border-border-subtle pb-6">
+          <Skeleton className="h-6 w-44 rounded-[4px]" />
+          <Skeleton className="h-3 w-72 max-w-[70vw] rounded-[4px]" />
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Skeleton className="h-28 rounded-2xl" />
-          <Skeleton className="h-28 rounded-2xl" />
-          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-md" />
+          <Skeleton className="h-28 rounded-md" />
+          <Skeleton className="h-28 rounded-md" />
         </div>
-        <Skeleton className="min-h-[360px] flex-1 rounded-2xl" />
+        <Skeleton className="min-h-[360px] flex-1 rounded-md" />
       </main>
       <span className="sr-only">Memuat konten aplikasi...</span>
     </div>

@@ -5,6 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuthStore } from '../store/auth-store';
+import Button from '../components/atoms/Button';
+import Banner from '../components/ui/Banner';
 
 const loginSchema = z.object({
   username: z.string().trim().min(1, 'Username wajib diisi'),
@@ -66,7 +68,7 @@ export default function Login() {
         {/* Card Form */}
         <form 
           onSubmit={handleSubmit(submitLogin)}
-          className="flex w-full sm:w-[400px] h-fit flex-col bg-surface-raised border border-border-subtle rounded-2xl p-8 gap-5"
+          className="flex h-fit w-full flex-col gap-5 rounded-2xl border border-border-subtle bg-surface-raised p-8 sm:w-[400px]"
         >
           <div className="flex flex-col gap-1.5">
             <h2 className="text-text-primary font-display text-xl font-semibold leading-normal tracking-[-0.5px]">
@@ -79,9 +81,7 @@ export default function Login() {
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-status-danger/10 border border-status-danger/20 rounded-md text-status-danger text-sm font-medium animate-in fade-in">
-              {error}
-            </div>
+            <Banner tone="danger">{error}</Banner>
           )}
 
           {/* Username Field */}
@@ -89,7 +89,7 @@ export default function Login() {
             <label htmlFor="username" className="text-text-secondary font-sans text-[13px] font-medium leading-normal">
               Username
             </label>
-            <div className="flex w-full h-12 items-center bg-surface-base border border-border-subtle rounded-[10px] px-4 py-0 gap-3 focus-within:ring-1 focus-within:ring-brand-primary/50 focus-within:border-brand-primary transition-all duration-200">
+            <div className="flex w-full h-12 items-center bg-surface-base border border-border-subtle rounded-[10px] px-4 py-0 gap-3 focus-within:ring-[3px] focus-within:ring-brand-primary-strong/15 focus-within:border-brand-primary-strong transition-all duration-200">
               <User size={16} className="text-text-muted shrink-0" />
               <input
                 id="username"
@@ -111,7 +111,7 @@ export default function Login() {
             <label htmlFor="password" className="text-text-secondary font-sans text-[13px] font-medium leading-normal">
               Password
             </label>
-            <div className="flex w-full h-12 items-center bg-surface-base border border-border-subtle rounded-[10px] px-4 py-0 gap-3 focus-within:ring-1 focus-within:ring-brand-primary/50 focus-within:border-brand-primary transition-all duration-200">
+            <div className="flex w-full h-12 items-center bg-surface-base border border-border-subtle rounded-[10px] px-4 py-0 gap-3 focus-within:ring-[3px] focus-within:ring-brand-primary-strong/15 focus-within:border-brand-primary-strong transition-all duration-200">
               <Lock size={16} className="text-text-muted shrink-0" />
               <input
                 id="password"
@@ -137,30 +137,25 @@ export default function Login() {
           </div>
 
           {/* Submit Button */}
-          <button
+          <Button
             type="submit"
-            disabled={isLoading || !isValid}
-            className="flex w-full h-12 justify-center items-center bg-brand-primary-strong hover:bg-brand-primary disabled:bg-brand-primary-strong/50 text-white hover:text-surface-base font-sans text-[15px] font-semibold leading-normal rounded-[10px] cursor-pointer disabled:cursor-not-allowed transition-all duration-200"
+            variant="primary"
+            isLoading={isLoading}
+            disabled={!isValid}
+            className="h-12 w-full rounded-md text-[15px]"
           >
-            {isLoading ? (
-              <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              'Masuk'
-            )}
-          </button>
+            Masuk
+          </Button>
 
           {/* Forgot Password */}
           <div className="flex justify-center items-center">
-            <span className="text-brand-primary hover:text-brand-primary/80 font-sans text-[13px] font-medium leading-normal cursor-pointer transition-colors">
+            <span className="cursor-pointer font-sans text-[12.5px] font-medium leading-normal text-brand-primary-strong transition-colors hover:text-brand-primary-pressed">
               Lupa password?
             </span>
           </div>
         </form>
 
-        <footer className="text-xs font-bold text-text-muted uppercase tracking-widest mt-4">
+        <footer className="mt-4 text-[11px] font-medium uppercase tracking-[0.14em] text-text-placeholder">
           PLN Indonesia Power © 2026
         </footer>
       </div>

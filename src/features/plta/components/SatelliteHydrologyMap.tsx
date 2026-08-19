@@ -1,7 +1,9 @@
 import type { RefObject } from 'react';
-import { ExternalLink, MapPin } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import {
   DAM_IMAGERY_VIEWBOX,
+  HYDROLOGY_ZONES,
+  HYDROLOGY_ZONE_PRESENTATION,
   type DamImagery,
   type HydrologyZone,
 } from '../dam-imagery';
@@ -15,37 +17,10 @@ interface SatelliteHydrologyMapProps {
   onZoneSelect: (zone: HydrologyZone) => void;
 }
 
-interface ZonePresentation {
-  label: string;
-  detail: string;
-  color: string;
-  labelOffset: {
-    x: number;
-    y: number;
-  };
-}
-
-const ZONES: HydrologyZone[] = ['upstream', 'dam', 'downstream'];
-
-const zonePresentation: Record<HydrologyZone, ZonePresentation> = {
-  upstream: {
-    label: 'Hulu',
-    detail: 'Tampungan & inflow',
-    color: '#22d3ee',
-    labelOffset: { x: -188, y: -88 },
-  },
-  dam: {
-    label: 'Dam',
-    detail: 'Spillway & intake',
-    color: '#f59e0b',
-    labelOffset: { x: 24, y: -26 },
-  },
-  downstream: {
-    label: 'Hilir',
-    detail: 'Tailrace & outflow',
-    color: '#34d399',
-    labelOffset: { x: -188, y: 36 },
-  },
+const MARKER_HALO: Record<HydrologyZone, string> = {
+  upstream: 'rgba(34,211,238,.24)',
+  dam: 'rgba(245,158,11,.24)',
+  downstream: 'rgba(52,211,153,.24)',
 };
 
 function projectAnchor(imagery: DamImagery, zone: HydrologyZone) {
@@ -69,157 +44,112 @@ export default function SatelliteHydrologyMap({
   onZoneSelect,
 }: SatelliteHydrologyMapProps) {
   return (
-    <article className="relative z-10 overflow-hidden border border-[#e2e8f0] bg-white">
-      <div className="border-b border-[#e2e8f0] px-5 py-4">
-        <h3 className="text-[15px] font-semibold text-[#0f172a]">Citra Satelit</h3>
-      </div>
-
-      <figure
-        ref={mapRef}
-        className="relative h-[400px] overflow-hidden bg-[#0f172a] sm:aspect-[8/5] sm:h-auto"
+    <figure
+      ref={mapRef}
+      className="relative aspect-[2/1] max-h-[480px] min-h-[320px] w-full overflow-hidden bg-[#0f172a]"
+    >
+      <svg
+        viewBox={`0 0 ${DAM_IMAGERY_VIEWBOX.width} ${DAM_IMAGERY_VIEWBOX.height}`}
+        preserveAspectRatio="xMidYMid slice"
+        role="group"
+        aria-label={`Pemetaan hidrologi ${imagery.damName}`}
+        className="absolute inset-0 h-full w-full"
       >
-        <svg
-          viewBox={`0 0 ${DAM_IMAGERY_VIEWBOX.width} ${DAM_IMAGERY_VIEWBOX.height}`}
-          preserveAspectRatio="xMidYMid meet"
-          role="group"
-          aria-label={`Pemetaan hidrologi ${imagery.damName}`}
-          className="absolute inset-0 h-full w-full"
-        >
-          <title>Pemetaan titik hulu, bendungan, dan hilir pada {imagery.damName}</title>
-          <image
-            href={imagery.imageUrl}
-            x="0"
-            y="0"
-            width={DAM_IMAGERY_VIEWBOX.width}
-            height={DAM_IMAGERY_VIEWBOX.height}
-            preserveAspectRatio="xMidYMid meet"
-            onError={onImageError}
-          />
-          <rect
-            width={DAM_IMAGERY_VIEWBOX.width}
-            height={DAM_IMAGERY_VIEWBOX.height}
-            fill="#020617"
-            opacity="0.08"
-            pointerEvents="none"
-          />
+        <title>Pemetaan titik hulu, bendungan, dan hilir pada {imagery.damName}</title>
+        <image
+          href={imagery.imageUrl}
+          x="0"
+          y="0"
+          width={DAM_IMAGERY_VIEWBOX.width}
+          height={DAM_IMAGERY_VIEWBOX.height}
+          preserveAspectRatio="xMidYMid slice"
+          onError={onImageError}
+        />
+        <rect
+          width={DAM_IMAGERY_VIEWBOX.width}
+          height={DAM_IMAGERY_VIEWBOX.height}
+          fill="#020617"
+          opacity="0.08"
+          pointerEvents="none"
+        />
 
-          {ZONES.map((zone) => {
-            const { x, y } = projectAnchor(imagery, zone);
-            const presentation = zonePresentation[zone];
-            const isActive = activeZone === zone;
-            const isMuted = activeZone !== null && !isActive;
-            const labelWidth = 164;
-            const labelHeight = 52;
+        {HYDROLOGY_ZONES.map((zone) => {
+          const { x, y } = projectAnchor(imagery, zone);
+          const presentation = HYDROLOGY_ZONE_PRESENTATION[zone];
+          const isActive = activeZone === zone;
+          const isMuted = activeZone !== null && !isActive;
+          const radius = isActive ? 15 : 13;
 
-            return (
-              <g
-                key={zone}
-                transform={`translate(${x} ${y})`}
-                role="button"
-                tabIndex={0}
-                aria-label={`Tampilkan parameter ${presentation.label}`}
-                onClick={() => onZoneSelect(zone)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
-                  event.preventDefault();
-                  onZoneSelect(zone);
-                }}
-                onPointerEnter={() => onActiveZoneChange(zone)}
-                onPointerLeave={() => onActiveZoneChange(null)}
-                onFocus={() => onActiveZoneChange(zone)}
-                onBlur={() => onActiveZoneChange(null)}
-                className="cursor-pointer outline-none transition-opacity duration-200"
-                style={{ opacity: isMuted ? 0.56 : 1 }}
+          return (
+            <g
+              key={zone}
+              transform={`translate(${x} ${y})`}
+              role="button"
+              tabIndex={0}
+              aria-label={`Sorot parameter ${presentation.title}`}
+              onClick={() => onZoneSelect(zone)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                onZoneSelect(zone);
+              }}
+              onPointerEnter={() => onActiveZoneChange(zone)}
+              onPointerLeave={() => onActiveZoneChange(null)}
+              onFocus={() => onActiveZoneChange(zone)}
+              onBlur={() => onActiveZoneChange(null)}
+              className="cursor-pointer outline-none transition-opacity duration-200"
+              style={{ opacity: isMuted ? 0.55 : 1 }}
+            >
+              {isActive && (
+                <circle r={radius + 5} fill={MARKER_HALO[zone]} />
+              )}
+              <circle
+                r={radius}
+                className={zone === 'dam' ? 'fill-amber-500' : zone === 'upstream' ? 'fill-brand-primary' : 'fill-status-success'}
+                stroke="#ffffff"
+                strokeWidth={2}
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontFamily="'JetBrains Mono', monospace"
+                fontWeight={600}
+                fontSize={isActive ? 13 : 12}
+                className={zone === 'dam' ? 'fill-white' : zone === 'upstream' ? 'fill-cyan-950' : 'fill-emerald-950'}
               >
-                <circle
-                  r={isActive ? 30 : 25}
-                  fill={presentation.color}
-                  opacity={isActive ? 0.22 : 0.14}
-                  className="transition-all duration-200"
-                />
-                <circle
-                  r={isActive ? 17 : 14}
-                  fill="#ffffff"
-                  stroke={presentation.color}
-                  strokeWidth={isActive ? 7 : 5}
-                  vectorEffect="non-scaling-stroke"
-                  className="transition-all duration-200"
-                />
-                <circle
-                  data-hydrology-anchor-point={zone}
-                  r="6"
-                  fill={presentation.color}
-                />
+                {presentation.order}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
 
-                <g
-                  transform={`translate(${presentation.labelOffset.x} ${presentation.labelOffset.y})`}
-                  pointerEvents="none"
-                >
-                  <rect
-                    width={labelWidth}
-                    height={labelHeight}
-                    rx="10"
-                    fill="#020617"
-                    fillOpacity={isActive ? 0.94 : 0.82}
-                    stroke={presentation.color}
-                    strokeOpacity={isActive ? 1 : 0.72}
-                    strokeWidth={isActive ? 2.5 : 1.5}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <text
-                    x="14"
-                    y="21"
-                    fill="#ffffff"
-                    fontSize="16"
-                    fontWeight="700"
-                  >
-                    {presentation.label}
-                    <tspan
-                      x="14"
-                      dy="18"
-                      fill="#cbd5e1"
-                      fontSize="11"
-                      fontWeight="500"
-                    >
-                      {presentation.detail}
-                    </tspan>
-                  </text>
-                </g>
-              </g>
-            );
-          })}
-        </svg>
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[#020617]/90 via-[#020617]/45 to-transparent px-5 pb-4 pt-20 text-white">
-          <figcaption>
-            <p className="text-sm font-semibold">{imagery.damName}</p>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-white/75">
-              <MapPin size={12} aria-hidden="true" />
-              {imagery.location}
-            </p>
-            <p className="mt-1 text-[10px] text-white/60">{imagery.acquisitionLabel}</p>
-          </figcaption>
-          <a
-            href={imagery.attributionUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="pointer-events-auto mt-2 inline-flex items-center gap-1 text-[10px] text-white/60 transition-colors hover:text-white"
-          >
-            World Imagery — {imagery.attribution}
-            <ExternalLink size={10} aria-hidden="true" />
-          </a>
-        </div>
-
+      <figcaption className="absolute bottom-3 left-3 z-20 max-w-[min(420px,calc(100%-24px))] rounded-[4px] bg-white/85 px-2 py-1.5 backdrop-blur-[2px]">
+        <p className="truncate text-[11px] font-semibold text-text-primary">{imagery.damName}</p>
+        <p className="mt-0.5 truncate font-mono text-[10px] text-slate-600">
+          {imagery.acquisitionLabel}
+        </p>
         <a
-          href={imagery.mapUrl}
+          href={imagery.attributionUrl}
           target="_blank"
           rel="noreferrer"
-          className="absolute right-4 top-4 z-30 inline-flex items-center gap-1.5 bg-white/95 px-3 py-2 text-[11px] font-semibold text-[#0f172a] shadow-sm backdrop-blur transition-colors hover:bg-white"
+          className="mt-0.5 inline-flex max-w-full items-center gap-1 font-mono text-[10px] text-slate-500 transition-colors hover:text-brand-primary-strong"
         >
-          Buka peta satelit
-          <ExternalLink size={12} aria-hidden="true" />
+          <span className="truncate">World Imagery — {imagery.attribution}</span>
+          <ExternalLink size={10} className="shrink-0" aria-hidden="true" />
         </a>
-      </figure>
-    </article>
+      </figcaption>
+
+      <a
+        href={imagery.mapUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="absolute right-3 top-3 z-30 inline-flex items-center gap-1.5 rounded-sm border border-white/60 bg-white/90 px-2.5 py-1.5 text-[11px] font-semibold text-text-primary backdrop-blur transition-colors hover:bg-white"
+      >
+        Buka peta satelit
+        <ExternalLink size={12} aria-hidden="true" />
+      </a>
+    </figure>
   );
 }

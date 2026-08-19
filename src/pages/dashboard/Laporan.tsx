@@ -5,22 +5,24 @@ import {
   type FormEvent,
 } from 'react';
 import {
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Download,
   FileSpreadsheet,
   LoaderCircle,
   Plus,
   Search,
-  XCircle,
 } from 'lucide-react';
+import Badge, { type BadgeTone } from '../../components/atoms/Badge';
 import Button from '../../components/atoms/Button';
 import Select from '../../components/atoms/Select';
 import Skeleton from '../../components/atoms/Skeleton';
 import ResourceTableSkeleton from '../../components/skeletons/ResourceTableSkeleton';
 import Sheet from '../../components/ui/Sheet';
 import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import PageHeader from '../../components/ui/PageHeader';
+import EmptyState from '../../components/ui/EmptyState';
+import ErrorState from '../../components/ui/ErrorState';
+import RefetchBar from '../../components/ui/RefetchBar';
+import TablePagination from '../../components/ui/TablePagination';
 import {
   useActivePLTA,
   usePLTATagsQuery,
@@ -57,11 +59,11 @@ const REPORT_TYPES: Record<ReportType, string> = {
   yearly: 'Tahunan',
 };
 
-const STATUS_META: Record<ReportStatus, { label: string; className: string }> = {
-  pending: { label: 'Menunggu', className: 'bg-amber-50 text-amber-700 ring-amber-600/15' },
-  processing: { label: 'Diproses', className: 'bg-cyan-50 text-cyan-700 ring-cyan-600/15' },
-  completed: { label: 'Selesai', className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/15' },
-  failed: { label: 'Gagal', className: 'bg-red-50 text-red-700 ring-red-600/15' },
+const STATUS_META: Record<ReportStatus, { label: string; tone: BadgeTone }> = {
+  pending: { label: 'Menunggu', tone: 'amber' },
+  processing: { label: 'Diproses', tone: 'cyan' },
+  completed: { label: 'Selesai', tone: 'green' },
+  failed: { label: 'Gagal', tone: 'red' },
 };
 
 function getCurrentPeriod(): { month: number; year: number } {
@@ -123,17 +125,11 @@ function errorMessage(error: unknown): string {
 
 function ReportStatusBadge({ status }: { status: ReportStatus }) {
   const meta = STATUS_META[status];
-  const icon = status === 'completed'
-    ? <CheckCircle2 size={14} />
-    : status === 'failed'
-      ? <XCircle size={14} />
-      : <LoaderCircle size={14} className={status === 'processing' ? 'animate-spin' : ''} />;
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${meta.className}`}>
-      {icon}
+    <Badge tone={meta.tone} spinning={status === 'processing'}>
       {meta.label}
-    </span>
+    </Badge>
   );
 }
 
@@ -193,8 +189,6 @@ export default function Reports() {
   const parameters = parametersByPLTA[pltaId] ?? [];
   const total = reportsQuery.data?.total ?? 0;
   const totalPages = Math.max(reportsQuery.data?.pages ?? 1, 1);
-  const firstItem = total === 0 ? 0 : (page - 1) * PAGE_LIMIT + 1;
-  const lastItem = Math.min(page * PAGE_LIMIT, total);
 
   const applySearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -258,105 +252,129 @@ export default function Reports() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <h1 className="page-title">Laporan</h1>
-          <p className="page-description">Laporan time series bulanan PLTA {plta.shortName}</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <PlantSwitcher page="laporan" />
-          <Button
-            type="button"
-            leftIcon={<Plus size={17} />}
-            onClick={() => setIsQuerySheetOpen(true)}
-            className="h-11 whitespace-nowrap"
-          >
-            Buat Laporan
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Laporan"
+        description={`Laporan time series bulanan PLTA ${plta.shortName}`}
+        actions={(
+          <>
+            <PlantSwitcher page="laporan" />
+            <Button
+              type="button"
+              size="lg"
+              leftIcon={<Plus size={16} />}
+              onClick={() => setIsQuerySheetOpen(true)}
+              className="whitespace-nowrap"
+            >
+              Buat Laporan
+            </Button>
+          </>
+        )}
+      />
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 lg:px-5 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-slate-800">Daftar Laporan</h2>
-            <p className="mt-1 text-xs text-slate-500">Status laporan diperbarui otomatis hingga file siap diunduh.</p>
+      <div className="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
+        <form onSubmit={applySearch} className="flex min-w-0 items-center gap-2 sm:w-72">
+          <div className="relative flex min-w-0 flex-1 items-center">
+            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-slate-400" />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              maxLength={100}
+              placeholder="Cari nama laporan…"
+              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-white pr-3 pl-8.5 text-[12.5px] text-text-primary outline-none transition-[border-color,box-shadow] hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-slate-400"
+            />
           </div>
-          <form onSubmit={applySearch} className="flex w-full items-center gap-2 xl:max-w-md">
-            <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-cyan-600 focus-within:ring-2 focus-within:ring-cyan-600/10">
-              <Search size={15} className="shrink-0 text-slate-400" />
-              <input
-                type="search"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                maxLength={100}
-                placeholder="Cari jenis atau status..."
-                className="min-w-0 flex-1 border-0 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-              />
-              {search && (
-                <button type="button" onClick={clearSearch} className="cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-600">
-                  Bersihkan
-                </button>
-              )}
-            </div>
-            <button type="submit" className="h-10 shrink-0 cursor-pointer rounded-lg bg-slate-100 px-4 text-xs font-semibold text-slate-600 hover:bg-slate-200">
-              Cari
+          <button
+            type="submit"
+            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-white px-3 text-[12.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Cari
+          </button>
+          {search && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="h-9 shrink-0 cursor-pointer rounded-sm px-2 text-[12.5px] font-semibold text-slate-500 transition-colors hover:bg-slate-100"
+            >
+              Bersihkan
             </button>
-          </form>
-        </div>
+          )}
+        </form>
+        {!reportsQuery.isError && (
+          <span className="shrink-0 text-[11.5px] text-text-muted sm:ml-auto">{total} laporan</span>
+        )}
+      </div>
 
-        <div className="h-0.5 bg-transparent">
-          {reportsQuery.isFetching && !reportsQuery.isLoading && <Skeleton className="h-full w-full" />}
-        </div>
+      <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-white">
+        <RefetchBar isRefetching={reportsQuery.isFetching && !reportsQuery.isLoading} />
 
         {reportsQuery.isError ? (
-          <div className="px-6 py-12 text-center text-sm text-red-600">{errorMessage(reportsQuery.error)}</div>
+          <ErrorState
+            title="Daftar laporan belum bisa dimuat"
+            description={errorMessage(reportsQuery.error)}
+            isRetrying={reportsQuery.isFetching}
+            onRetry={() => void reportsQuery.refetch()}
+            className="py-10"
+          />
         ) : reportsQuery.isLoading ? (
           <div className="overflow-x-auto" role="status" aria-label="Memuat daftar laporan">
             <table className="w-full min-w-[900px] border-collapse text-left">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.06em] text-slate-500">
-                <tr><th className="px-6 py-3.5 font-semibold">Laporan</th><th className="px-4 py-3.5 font-semibold">Periode</th><th className="px-4 py-3.5 font-semibold">Dibuat</th><th className="px-4 py-3.5 font-semibold">Status</th><th className="px-6 py-3.5 text-right font-semibold">Aksi</th></tr>
+              <thead>
+                <tr className="h-9 border-b border-border-subtle bg-surface-overlay">
+                  <th className="table-head-cell px-4 text-left">Laporan</th>
+                  <th className="table-head-cell px-4 text-left">Periode</th>
+                  <th className="table-head-cell px-4 text-left">Dibuat</th>
+                  <th className="table-head-cell px-4 text-left">Status</th>
+                  <th className="table-head-cell px-4 text-right">Aksi</th>
+                </tr>
               </thead>
               <tbody><ResourceTableSkeleton columns={5} rows={PAGE_LIMIT} /></tbody>
             </table>
             <span className="sr-only">Memuat daftar laporan...</span>
           </div>
         ) : reports.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-            <div className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-slate-400"><FileSpreadsheet size={20} /></div>
-            <div>
-              <p className="text-sm font-semibold text-slate-600">{search ? 'Laporan tidak ditemukan' : 'Belum ada laporan'}</p>
-              <p className="mt-1 text-xs text-slate-400">{search ? 'Coba gunakan kata pencarian lain.' : 'Laporan time series bulanan akan muncul di sini.'}</p>
-            </div>
-          </div>
+          <EmptyState
+            icon={<FileSpreadsheet size={19} />}
+            title={search ? 'Laporan tidak ditemukan' : 'Belum ada laporan'}
+            description={search
+              ? 'Coba kata kunci lain atau kosongkan pencarian.'
+              : 'Laporan yang Anda buat akan muncul di daftar ini.'}
+            className="py-10"
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] border-collapse text-left">
-              <thead className="bg-slate-50 text-xs uppercase tracking-[0.06em] text-slate-500">
-                <tr><th className="px-6 py-3.5 font-semibold">Laporan</th><th className="px-4 py-3.5 font-semibold">Periode</th><th className="px-4 py-3.5 font-semibold">Dibuat</th><th className="px-4 py-3.5 font-semibold">Status</th><th className="px-6 py-3.5 text-right font-semibold">Aksi</th></tr>
+              <thead>
+                <tr className="h-9 border-b border-border-subtle bg-surface-overlay">
+                  <th className="table-head-cell px-4 text-left">Laporan</th>
+                  <th className="table-head-cell px-4 text-left">Periode</th>
+                  <th className="table-head-cell px-4 text-left">Dibuat</th>
+                  <th className="table-head-cell px-4 text-left">Status</th>
+                  <th className="table-head-cell px-4 text-right">Aksi</th>
+                </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-surface-overlay">
                 {reports.map((report) => (
                   <tr key={report.id} className="hover:bg-slate-50/70">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-slate-700">
+                    <td className="px-4 py-2.5">
+                      <p className="text-[12.5px] font-medium text-text-primary">
                         {report.template === 'timeseries' ? 'Laporan Time Series' : 'Laporan Historis'}
                       </p>
-                      <p className="mt-1 max-w-md truncate text-xs text-slate-400">
+                      <p className="mt-0.5 max-w-md truncate text-[11px] text-text-muted">
                         {REPORT_TYPES[report.type]} · {report.parameters?.map(formatParameterLabel).join(', ') || 'semua parameter'}
                       </p>
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-600">{formatDate(report.periodStart)} – {formatDate(report.periodEnd)}</td>
-                    <td className="px-4 py-4 text-sm text-slate-500">{formatDateTime(report.createdAt)}</td>
-                    <td className="px-4 py-4"><ReportStatusBadge status={report.status} /></td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-text-secondary">{formatDate(report.periodStart)} – {formatDate(report.periodEnd)}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-text-secondary">{formatDateTime(report.createdAt)}</td>
+                    <td className="px-4 py-2.5"><ReportStatusBadge status={report.status} /></td>
+                    <td className="px-4 py-2.5 text-right">
                       <button
                         type="button"
                         disabled={report.status !== 'completed' || downloadMutation.isPending}
                         onClick={() => void downloadReport(report)}
-                        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-[#0891b2] bg-white px-3 text-xs font-semibold text-[#0891b2] hover:bg-cyan-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+                        className="inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-sm border border-border-subtle bg-white px-2.5 text-[11.5px] font-semibold text-brand-primary-strong transition-colors hover:border-brand-tint-border hover:bg-brand-tint disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-surface-base disabled:text-slate-400"
                       >
-                        <Download size={15} />
+                        <Download size={14} />
                         Unduh Excel
                       </button>
                     </td>
@@ -368,39 +386,23 @@ export default function Reports() {
         )}
 
         {!reportsQuery.isLoading && !reportsQuery.isError && (
-          <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-5">
-            <p className="text-xs text-slate-400">
-              Menampilkan {firstItem}–{lastItem} dari {total} laporan
-            </p>
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <button
-                type="button"
-                disabled={page <= 1 || reportsQuery.isFetching}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Halaman sebelumnya"
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <span className="min-w-20 text-center text-xs font-semibold text-slate-600">{page} / {totalPages}</span>
-              <button
-                type="button"
-                disabled={page >= totalPages || reportsQuery.isFetching}
-                onClick={() => setPage((current) => Math.min(current + 1, totalPages))}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Halaman berikutnya"
-              >
-                <ChevronRight size={15} />
-              </button>
-            </div>
-          </div>
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={PAGE_LIMIT}
+            itemLabel="laporan"
+            isBusy={reportsQuery.isFetching}
+            onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
+            onNext={() => setPage((current) => Math.min(current + 1, totalPages))}
+          />
         )}
       </section>
 
       <Sheet
         isOpen={isQuerySheetOpen}
         title="Buat Laporan Bulanan"
-        description={`Laporan time series PLTA ${plta.shortName}.`}
+        description={`Laporan hidrologi · PLTA ${plta.shortName}`}
         onClose={closeQuerySheet}
         footer={(
           <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
@@ -418,12 +420,7 @@ export default function Reports() {
         )}
       >
         <form id="report-query-form" onSubmit={(event) => void createReport(event)} className="flex flex-col gap-5">
-          <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 px-4 py-3">
-            <p className="text-xs font-medium text-cyan-700">Time Series Bulanan</p>
-            <p className="mt-1 text-sm font-semibold text-slate-800">PLTA {plta.shortName}</p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             <Select
               label="Bulan"
               value={month}
@@ -439,20 +436,22 @@ export default function Reports() {
           </div>
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-medium text-slate-700">Parameter</legend>
-            <p className="mb-1 text-xs leading-5 text-slate-400">Pilihan berasal dari tag aktif PLTA. Kosongkan untuk menyertakan semua parameter.</p>
+            <legend className="field-label">
+              Parameter <span className="font-normal text-text-placeholder">· kosongkan berarti semua</span>
+            </legend>
+            <p className="mb-1 text-[11.5px] leading-[1.6] text-text-muted">Pilihan berasal dari tag aktif PLTA.</p>
             {tagsQuery.isLoading || tagsQuery.isPlaceholderData ? (
               <div className="space-y-2" role="status" aria-label="Memuat parameter tag">
-                {Array.from({ length: 4 }, (_, index) => <Skeleton key={`tag-option-${index}`} className="h-12 rounded-lg" />)}
+                {Array.from({ length: 4 }, (_, index) => <Skeleton key={`tag-option-${index}`} className="h-12 rounded-md" />)}
               </div>
             ) : tagsQuery.isError ? (
-              <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-3 text-xs text-red-600">Parameter tag belum dapat dimuat.</p>
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-[11.5px] text-red-700">Parameter tag belum dapat dimuat.</p>
             ) : parameterOptions.length === 0 ? (
-              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">Belum ada tag aktif pada PLTA ini.</p>
+              <p className="rounded-md border border-border-subtle bg-surface-base px-3 py-2.5 text-[11.5px] text-text-muted">Belum ada tag aktif pada PLTA ini.</p>
             ) : (
-              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              <div className="max-h-72 overflow-y-auto border-t border-border-subtle pr-1">
                 {parameterOptions.map((option) => (
-                  <label key={option.value} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600 hover:border-cyan-300 hover:bg-cyan-50/30">
+                  <label key={option.value} className="flex cursor-pointer items-center gap-2.5 border-b border-surface-overlay py-2 last:border-b-0">
                     <input
                       type="checkbox"
                       checked={parameters.includes(option.value)}
@@ -460,8 +459,8 @@ export default function Reports() {
                       className="size-4 shrink-0 accent-cyan-700"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium text-slate-700">{option.label}</span>
-                      <span className="mt-0.5 block truncate text-[11px] text-slate-400">
+                      <span className="block text-[12.5px] text-text-secondary">{option.label}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-text-placeholder">
                         {option.stations.size > 0 ? `${option.stations.size} stasiun` : 'Tag aktif'}
                         {option.units.size > 0 ? ` · ${[...option.units].join(', ')}` : ''}
                       </span>

@@ -14,6 +14,7 @@ import { getPLTAErrorMessage } from '../../features/plta/error';
 import { getPlantDisplayName } from '../../features/plta/presentation';
 import { formatMetric } from '../../shared/utils/number';
 import MapSkeleton from '../skeletons/MapSkeleton';
+import Badge from '../atoms/Badge';
 
 interface JavaMapProps {
   onPLTAClick: (pltaId: string) => void;
@@ -671,77 +672,69 @@ export default function JavaMap({
       </ComposableMap>
 
       {showPrecipitation && (
-        <div className="absolute right-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-end gap-1.5 sm:right-4 sm:top-4">
-          <button
-            type="button"
-            aria-pressed={isPrecipitationVisible}
-            onClick={() => setIsPrecipitationVisible((current) => !current)}
-            className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold backdrop-blur-sm transition-colors ${
-              isPrecipitationVisible
-                ? 'border-sky-300 bg-sky-50/95 text-sky-800 hover:bg-sky-100'
-                : 'border-slate-200 bg-white/95 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <CloudRain className="h-4 w-4" aria-hidden="true" />
-            <span>Presipitasi</span>
-            <span
-              className={`h-2 w-2 rounded-full ${
-                radarStatus === 'ready'
-                  ? 'bg-emerald-500'
-                  : radarStatus === 'error'
-                    ? 'bg-amber-500'
-                    : 'animate-pulse bg-sky-400'
+        <div className="absolute right-3 top-3 z-10 w-[212px] max-w-[calc(100%-1.5rem)] rounded-md border border-border-subtle bg-white/95 px-3.5 py-3 shadow-[0_6px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:right-4 sm:top-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-text-primary">
+              <CloudRain size={14} className="shrink-0 text-text-muted" aria-hidden="true" />
+              Radar Hujan
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isPrecipitationVisible}
+              aria-label={isPrecipitationVisible ? 'Matikan radar hujan' : 'Nyalakan radar hujan'}
+              onClick={() => setIsPrecipitationVisible((current) => !current)}
+              className={`relative h-[18px] w-8 shrink-0 cursor-pointer rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40 ${
+                isPrecipitationVisible ? 'bg-brand-primary-strong' : 'bg-slate-200'
               }`}
-              aria-hidden="true"
-            />
-          </button>
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 size-3.5 rounded-full bg-white transition-transform ${
+                  isPrecipitationVisible ? 'translate-x-[14px]' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
 
           {isPrecipitationVisible && (
-            <div
-              role="status"
-              className="rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1.5 text-right text-[10px] font-semibold text-slate-500 backdrop-blur-sm"
-            >
-              <p>
-                {radarStatus === 'ready' && radarFrame
-                  ? `Radar ${new Intl.DateTimeFormat('id-ID', {
+            <div role="status" className="mt-2.5 border-t border-surface-overlay pt-2">
+              <p className="flex items-center justify-between gap-2 text-[11px] font-medium text-text-secondary">
+                <span>Frame terakhir</span>
+                {radarStatus === 'ready' && radarFrame && (
+                  <span className="font-mono text-[11px] tabular-nums text-text-primary">
+                    {new Intl.DateTimeFormat('id-ID', {
                       hour: '2-digit',
                       minute: '2-digit',
                       timeZone: 'Asia/Jakarta',
-                    }).format(new Date(radarFrame.time * 1000))} WIB`
-                  : radarStatus === 'error'
-                    ? 'Radar gratis sedang tidak tersedia'
-                    : 'Memuat radar terbaru...'}
+                    }).format(new Date(radarFrame.time * 1000))} WIB
+                  </span>
+                )}
+                {radarStatus === 'error' && <span className="text-status-warning">Tidak tersedia</span>}
+                {radarStatus === 'loading' && <span className="animate-pulse text-text-muted">Memuat…</span>}
               </p>
               {radarStatus === 'ready' && (
-                <>
-                  <p className="font-normal text-slate-400">Area berwarna = hujan terdeteksi</p>
-                  <a
-                    href="https://www.rainviewer.com/"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-0.5 block font-medium text-sky-700 underline decoration-sky-300 underline-offset-2"
-                  >
-                    Data radar: RainViewer
-                  </a>
-                </>
+                <a
+                  href="https://www.rainviewer.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 block text-[10px] font-medium text-brand-primary-strong underline decoration-cyan-300 underline-offset-2"
+                >
+                  Data radar: RainViewer
+                </a>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* Info Panel Overlay (PLTA) - No Shadow! */}
+      {/* Info Panel Overlay (PLTA) */}
       {hoveredPLTA && (
-        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-2xl border border-slate-200 bg-white p-3 animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[250px] sm:p-4">
+        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md border border-border-subtle bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.12)] animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[250px] sm:p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
             <h4 className="min-w-0 font-sans text-sm font-bold text-slate-800">{hoveredPLTA.name}</h4>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              hoveredPLTA.isActive
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-slate-100 text-slate-600'
-            }`}>
+            <Badge tone={hoveredPLTA.isActive ? 'green' : 'slate'}>
               {hoveredPLTA.isActive ? 'Aktif' : 'Tidak aktif'}
-            </span>
+            </Badge>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
@@ -759,17 +752,17 @@ export default function JavaMap({
               </span>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 text-[10px] text-pln-teal font-bold flex items-center gap-1">
+          <div className="mt-4 pt-3 border-t border-surface-overlay text-[10px] text-brand-primary-strong font-bold flex items-center gap-1">
             Klik untuk detail telemetering →
           </div>
         </div>
       )}
 
-      {/* Info Panel Overlay (Custom AWLR/Rain Sensors) - No Shadow! */}
+      {/* Info Panel Overlay (Custom AWLR/Rain Sensors) */}
       {hoveredCustom && (
-        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-xl border border-slate-200 bg-white p-3 animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[180px]">
+        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md border border-border-subtle bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.12)] animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[180px]">
           <h4 className="font-bold text-slate-800 text-sm mb-1">{hoveredCustom.name}</h4>
-          <p className="text-xs font-mono font-bold text-pln-teal">{hoveredCustom.valueLabel}</p>
+          <p className="text-xs font-mono font-bold text-brand-primary-strong">{hoveredCustom.valueLabel}</p>
         </div>
       )}
 
@@ -779,27 +772,34 @@ export default function JavaMap({
         </div>
       )}
       
-      <div className="absolute bottom-2 right-2 flex max-w-[calc(100%-1rem)] flex-col gap-1.5 rounded-xl border border-slate-200 bg-white/95 p-2 backdrop-blur-sm sm:bottom-5 sm:right-5 sm:gap-2.5 sm:p-3">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-sm border border-slate-400 bg-slate-100"></div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase">Jawa Tengah</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-px w-4 bg-slate-500"></div>
-          <span className="text-[10px] font-bold uppercase text-slate-600">Batas Kab/Kota</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-0.5 w-4 rounded-full bg-sky-600"></div>
-          <span className="text-[10px] font-bold uppercase text-slate-600">Jaringan Sungai</span>
-        </div>
-        {showPrecipitation && isPrecipitationVisible && radarStatus === 'ready' && (
+      <div className="absolute bottom-3 right-3 flex max-w-[calc(100%-1.5rem)] min-w-[150px] flex-col gap-2 rounded-md border border-border-subtle bg-white/95 px-3 py-2.5 shadow-[0_6px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:bottom-4 sm:right-4 sm:min-w-[212px] sm:px-3.5">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">Legenda</span>
+        <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-4 rounded-sm bg-gradient-to-r from-sky-300 via-amber-300 to-fuchsia-500"></div>
-            <span className="text-[10px] font-bold uppercase text-slate-600">Radar Hujan</span>
+            <div className="h-2.5 w-3.5 shrink-0 rounded-[2px] bg-border-subtle"></div>
+            <span className="text-xs text-text-secondary">Jawa Tengah</span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 shrink-0 border-t border-dashed border-slate-400"></div>
+            <span className="text-xs text-text-secondary">Batas Kab/Kota</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-0.5 w-3.5 shrink-0 rounded-full bg-sky-400"></div>
+            <span className="text-xs text-text-secondary">Jaringan Sungai</span>
+          </div>
+          {showPrecipitation && isPrecipitationVisible && radarStatus === 'ready' && (
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-3.5 shrink-0 rounded-[2px] bg-gradient-to-r from-sky-300 via-amber-300 to-fuchsia-500"></div>
+              <span className="text-xs text-text-secondary">Radar Hujan</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="size-2.5 shrink-0 rounded-full bg-brand-primary-strong"></div>
+            <span className="text-xs text-text-secondary">PLTA</span>
+          </div>
+        </div>
         <span
-          className="hidden max-w-[210px] border-t border-slate-100 pt-2 text-[9px] font-medium leading-3.5 text-slate-400 sm:block"
+          className="hidden max-w-[210px] border-t border-surface-overlay pt-2 text-[10px] leading-[1.4] text-text-muted sm:block"
           title="Batas wilayah: BIG · Jaringan sungai: HydroRIVERS/HydroSHEDS"
         >
           Batas: BIG · Sungai: HydroRIVERS{showPrecipitation && radarStatus === 'ready' ? ' · Radar: RainViewer' : ''}

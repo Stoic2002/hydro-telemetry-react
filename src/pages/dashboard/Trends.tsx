@@ -1,8 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
 import {
+  Activity,
   ArrowDownRight,
   ArrowUpRight,
-  Calendar,
   Minus,
   RefreshCw,
 } from 'lucide-react';
@@ -20,8 +20,12 @@ import {
   YAxis,
 } from 'recharts';
 import Select from '../../components/atoms/Select';
+import SegmentedControl from '../../components/atoms/SegmentedControl';
 import Skeleton from '../../components/atoms/Skeleton';
 import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import PageHeader from '../../components/ui/PageHeader';
+import EmptyState from '../../components/ui/EmptyState';
+import { chartValueDomain } from '../../shared/utils/chart';
 import {
   useActivePLTA,
   usePLTATagsQuery,
@@ -121,7 +125,7 @@ function TrendTooltip({ active, payload, unit, color }: TrendTooltipProps) {
   if (!active || !point || typeof point.value !== 'number') return null;
 
   return (
-    <div className="min-w-44 rounded-xl border border-slate-700/80 bg-slate-950/95 p-3 text-white shadow-2xl backdrop-blur-md">
+    <div className="min-w-44 rounded-md border border-slate-700/80 bg-slate-900/95 p-3 text-white shadow-2xl backdrop-blur-md">
       <div className="flex items-center gap-2 text-[11px] font-medium text-slate-300">
         <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
         {formatPointTime(point.time)}
@@ -159,16 +163,7 @@ function TrendCard({
   const minimumValue = values.length > 0 ? Math.min(...values) : 0;
   const maximumValue = values.length > 0 ? Math.max(...values) : 0;
   const changeValue = latest && first ? latest.value - first.value : 0;
-  const valueRange = maximumValue - minimumValue;
-  const domainPadding = Math.max(
-    valueRange * 0.12,
-    Math.abs(maximumValue) * 0.05,
-    0.01,
-  );
-  const yDomain: [number, number] = [
-    minimumValue >= 0 ? Math.max(0, minimumValue - domainPadding) : minimumValue - domainPadding,
-    maximumValue + domainPadding,
-  ];
+  const yDomain = chartValueDomain(values);
   const gradientId = `trend-fill-${title.toLocaleLowerCase('id-ID').replace(/[^a-z0-9]+/g, '-')}`;
   const ChangeIcon = changeValue > 0
     ? ArrowUpRight
@@ -228,12 +223,12 @@ function TrendCard({
   );
 
   return (
-    <article className="overflow-hidden rounded-xl border border-[#e2e8f0] bg-white">
+    <article className="overflow-hidden rounded-md border border-border-subtle bg-white">
       <div className="p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div>
-            <h2 className="text-base font-semibold text-[#0f172a]">{title}</h2>
-            <p className="mt-1 text-xs text-[#64748b]">{subtitle}</p>
+            <h2 className="section-title">{title}</h2>
+            <p className="mt-1 text-xs text-text-muted">{subtitle}</p>
           </div>
 
           <div className="text-left sm:text-right">
@@ -250,7 +245,7 @@ function TrendCard({
 
         {isLoading ? (
           <div role="status" aria-label="Memuat grafik tren" className="mt-5">
-            <div className="grid grid-cols-2 border-y border-slate-100 lg:grid-cols-4">
+            <div className="grid grid-cols-2 border-y border-surface-overlay lg:grid-cols-4">
               {Array.from({ length: 4 }, (_, index) => (
                 <div key={`trend-stat-loading-${index}`} className="px-3 py-3 sm:px-4">
                   <Skeleton className="h-2.5 w-16 rounded" />
@@ -273,12 +268,12 @@ function TrendCard({
             </button>
           </div>
         ) : points.length === 0 ? (
-          <div className="mt-5 flex h-[390px] items-center justify-center border-y border-slate-100 bg-slate-50/40 text-xs text-slate-400">
+          <div className="mt-5 flex h-[390px] items-center justify-center border-y border-surface-overlay bg-slate-50/40 text-xs text-slate-400">
             Belum ada titik data pada periode ini.
           </div>
         ) : (
           <>
-            <div className="mt-5 grid grid-cols-2 border-y border-slate-100 lg:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 border-y border-surface-overlay lg:grid-cols-4">
               {[
                 { label: 'Rata-rata', value: averageValue },
                 { label: 'Minimum', value: minimumValue },
@@ -286,7 +281,7 @@ function TrendCard({
               ].map((statistic) => (
                 <div
                   key={statistic.label}
-                  className="border-slate-100 px-3 py-3 even:border-l lg:border-l lg:first:border-l-0 sm:px-4"
+                  className="border-surface-overlay px-3 py-3 even:border-l lg:border-l lg:first:border-l-0 sm:px-4"
                 >
                   <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-slate-400">
                     {statistic.label}
@@ -297,7 +292,7 @@ function TrendCard({
                   </p>
                 </div>
               ))}
-              <div className="border-l border-slate-100 px-3 py-3 sm:px-4">
+              <div className="border-l border-surface-overlay px-3 py-3 sm:px-4">
                 <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-slate-400">
                   Perubahan periode
                 </p>
@@ -374,7 +369,7 @@ function TrendCard({
                   </AreaChart>
                 )}
               </ResponsiveContainer>
-              <div className="flex flex-col justify-between gap-1 border-t border-slate-100 pt-3 text-[10px] text-slate-400 sm:flex-row sm:items-center">
+              <div className="flex flex-col justify-between gap-1 border-t border-surface-overlay pt-3 text-[10px] text-slate-400 sm:flex-row sm:items-center">
                 <span>Arahkan kursor ke grafik untuk melihat detail nilai.</span>
                 <span>
                   {points.length.toLocaleString('id-ID')} titik · resolusi {series?.resolution} · agregasi lintas stasiun
@@ -470,47 +465,42 @@ export default function Trends() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <h1 className="page-title">Tren & Grafik</h1>
-          <p className="page-description">
-            Pilih satu parameter untuk melihat tren data PLTA {plta.shortName}
-          </p>
-        </div>
-        <PlantSwitcher page="trends" />
-      </header>
+      <PageHeader
+        title="Tren & Grafik"
+        description={`Pilih satu parameter untuk melihat tren data PLTA ${plta.shortName}`}
+        actions={<PlantSwitcher page="trends" />}
+      />
 
-      <section className="flex flex-col gap-4 border-y border-[#e2e8f0] py-4 sm:flex-row sm:items-end">
-        <label className="flex w-full flex-col gap-1.5 sm:max-w-xs">
-          <span className="text-xs font-semibold text-[#475569]">Parameter grafik</span>
-          <Select
-            aria-label="Parameter grafik"
-            value={parameter}
-            disabled={tagsQuery.isLoading || tagsQuery.isPlaceholderData || parameterOptions.length === 0}
-            onChange={(event) => setFilter('parameter', event.target.value)}
-            className="w-full"
-            options={parameterOptions.map((item) => ({
-              value: item.value,
-              label: item.label,
-            }))}
-          />
-        </label>
-        <label className="flex w-full flex-col gap-1.5 sm:max-w-xs">
-          <span className="text-xs font-semibold text-[#475569]">Periode</span>
-          <Select
-            aria-label="Periode tren"
-            value={period}
-            onChange={(event) => setFilter('period', event.target.value)}
-            leadingIcon={<Calendar />}
-            className="w-full"
-            options={TREND_PERIODS.map((item) => ({ value: item, label: item }))}
-          />
-        </label>
+      <section className="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:gap-4">
+        <Select
+          aria-label="Parameter grafik"
+          value={parameter}
+          disabled={tagsQuery.isLoading || tagsQuery.isPlaceholderData || parameterOptions.length === 0}
+          onChange={(event) => setFilter('parameter', event.target.value)}
+          controlSize="sm"
+          className="w-full sm:w-60"
+          options={parameterOptions.map((item) => ({
+            value: item.value,
+            label: item.label,
+          }))}
+        />
+        <SegmentedControl
+          ariaLabel="Periode tren"
+          value={period}
+          onChange={(value) => setFilter('period', value)}
+          options={TREND_PERIODS.map((item) => ({ value: item, label: item }))}
+        />
+        <span className="text-[11.5px] text-text-muted sm:ml-auto">Filter tersimpan di URL</span>
       </section>
 
       {!tagsQuery.isLoading && !tagsQuery.isPlaceholderData && !tagsQuery.isError && parameterOptions.length === 0 ? (
-        <div className="flex min-h-72 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-center text-sm text-slate-500">
-          Belum ada tag aktif untuk PLTA ini.
+        <div className="rounded-md border border-border-subtle bg-white">
+          <EmptyState
+            icon={<Activity size={19} />}
+            title="Belum ada parameter"
+            description="PLTA ini belum punya tag aktif yang bisa ditampilkan sebagai grafik."
+            className="py-10"
+          />
         </div>
       ) : (
         <TrendCard

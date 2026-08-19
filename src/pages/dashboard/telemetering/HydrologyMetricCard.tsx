@@ -1,39 +1,29 @@
 import { useState, type RefObject } from 'react';
-import { ChevronDown, ChevronUp, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { HYDROLOGY_ZONE_PRESENTATION, type HydrologyZone } from '../../../features/plta/dam-imagery';
+import SourceMarker from '../../../components/atoms/SourceMarker';
+import type { MetricSection } from './presentation';
 import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload/model';
-import type {
-  MetricSection,
-  MetricSource,
-} from './presentation';
-
-const sourceClasses: Record<MetricSource, string> = {
-  api: 'text-[#0e7490]',
-  formula: 'text-[#b45309]',
-  input: 'text-[#64748b]',
-  unavailable: 'text-[#dc2626]',
-  constant: 'text-[#94a3b8]',
-};
 
 interface HydrologyMetricCardProps {
   cardRef?: RefObject<HTMLElement | null>;
+  zone: HydrologyZone;
   isHighlighted?: boolean;
   onHighlightChange?: (isHighlighted: boolean) => void;
-  title: string;
-  subtitle?: string;
   sections: MetricSection[];
   onUpload?: (target: DailyTelemetryUploadTarget) => void;
 }
 
 export function HydrologyMetricCard({
   cardRef,
+  zone,
   isHighlighted = false,
   onHighlightChange,
-  title,
-  subtitle,
   sections,
   onUpload,
 }: HydrologyMetricCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const presentation = HYDROLOGY_ZONE_PRESENTATION[zone];
   const compactRowLimit = 5;
   const rowCount = sections.reduce((total, section) => total + section.rows.length, 0);
   const visibleSections = sections.map((section, sectionIndex) => {
@@ -59,56 +49,47 @@ export function HydrologyMetricCard({
         if (event.currentTarget.contains(event.relatedTarget)) return;
         onHighlightChange?.(false);
       }}
-      className={`overflow-hidden border bg-white outline-none transition-[border-color,box-shadow] duration-200 ${
-        isHighlighted
-          ? 'border-cyan-400 shadow-[0_0_0_3px_rgba(34,211,238,0.14)]'
-          : 'border-[#e2e8f0]'
+      className={`flex h-full flex-col outline-none transition-colors duration-200 ${presentation.columnClassName} ${
+        isHighlighted ? 'ring-2 ring-inset ring-cyan-400' : ''
       }`}
     >
-      <div className="border-b border-[#e2e8f0] px-5 py-4">
-        <h3 className="text-[15px] font-semibold text-[#0f172a]">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-[#94a3b8]">{subtitle}</p>}
+      <div className={`flex items-center justify-between gap-2 border-b px-4 py-2.5 ${presentation.borderClassName}`}>
+        <div className="flex items-center gap-2">
+          <span className={`flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-semibold ${presentation.badgeClassName}`}>
+            {presentation.order}
+          </span>
+          <h3 className="text-[13px] font-semibold text-text-primary">{presentation.title}</h3>
+        </div>
+        <span className="shrink-0 text-[11px] text-text-muted">{rowCount} parameter</span>
       </div>
 
       {visibleSections.map((section) => (
-        <section key={section.title}>
+        <section key={section.title} className="flex-1">
           {visibleSections.length > 1 && (
-            <div className="border-b border-[#e2e8f0] bg-[#f8fafc] px-5 py-2.5">
-              <h4 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#64748b]">
-                {section.title}
-              </h4>
+            <div className="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-text-muted">
+              {section.title}
             </div>
           )}
-          <div className="divide-y divide-[#f1f5f9] px-5">
+          <div className={`divide-y ${presentation.dividerClassName} px-4`}>
             {section.rows.map((row) => (
-              <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium leading-5 text-[#475569]">{row.label}</p>
-                  <p className={`mt-0.5 text-[11px] font-medium ${sourceClasses[row.sourceType]}`}>
-                    {row.source}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 whitespace-nowrap text-right">
-                  <div>
-                    <span className={`text-sm font-semibold ${
-                      row.sourceType === 'unavailable' ? 'text-[#dc2626]' : 'text-[#0f172a]'
-                    }`}
-                    >
-                      {row.value}
-                    </span>
-                    {row.unit && <span className="ml-1 text-[10px] text-[#94a3b8]">{row.unit}</span>}
-                  </div>
+              <div key={row.label} className="flex items-center justify-between gap-3 py-2">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-[12.5px] text-text-secondary">{row.label}</span>
+                  <SourceMarker type={row.sourceType} />
                   {row.uploadTarget && onUpload && (
                     <button
                       type="button"
                       onClick={() => onUpload(row.uploadTarget!)}
-                      className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-cyan-700 transition-colors hover:text-cyan-800"
+                      className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-[10.5px] font-semibold text-brand-primary-strong transition-colors hover:text-cyan-800"
                     >
-                      <Upload size={12} />
                       {row.hasData ? 'Edit data' : 'Input data'}
                     </button>
                   )}
                 </div>
+                <span className="shrink-0 whitespace-nowrap text-right font-mono text-[13px] font-medium text-text-primary">
+                  {row.value}
+                  {row.unit && <span className="ml-1 text-[11px] font-normal text-text-muted">{row.unit}</span>}
+                </span>
               </div>
             ))}
           </div>
@@ -119,9 +100,9 @@ export function HydrologyMetricCard({
           type="button"
           onClick={() => setIsExpanded((current) => !current)}
           aria-expanded={isExpanded}
-          className="flex w-full cursor-pointer items-center justify-center gap-1.5 border-t border-[#e2e8f0] bg-[#f8fafc] px-4 py-2.5 text-xs font-semibold text-cyan-700 transition-colors hover:bg-cyan-50 hover:text-cyan-800"
+          className="flex cursor-pointer items-center gap-1 px-4 py-2.5 text-left text-[11.5px] font-semibold text-brand-primary-strong transition-colors hover:text-cyan-800"
         >
-          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           {isExpanded ? 'Ringkas parameter' : `Lihat semua (${rowCount})`}
         </button>
       )}
@@ -131,9 +112,9 @@ export function HydrologyMetricCard({
 
 export function GenericHydrologySchematic({ plantName }: { plantName: string }) {
   return (
-    <article className="overflow-hidden border border-[#e2e8f0] bg-white">
-      <div className="border-b border-[#e2e8f0] px-5 py-4">
-        <h3 className="text-[15px] font-semibold text-[#0f172a]">Skema Hidrologi</h3>
+    <article className="overflow-hidden rounded-md border border-border-subtle bg-white">
+      <div className="border-b border-border-subtle px-5 py-4">
+        <h3 className="text-[15px] font-semibold text-text-primary">Skema Hidrologi</h3>
       </div>
 
       <div className="overflow-x-auto">
@@ -226,4 +207,3 @@ export function GenericHydrologySchematic({ plantName }: { plantName: string }) 
     </article>
   );
 }
-

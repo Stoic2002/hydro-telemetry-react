@@ -31,6 +31,9 @@ import type { MonthlyHydrologyImageKind } from '../../features/hydrology/model';
 import TelemetryUploadSheet from '../../features/telemetry-upload/components/TelemetryUploadSheet';
 import type { DailyTelemetryUploadTarget } from '../../features/telemetry-upload/model';
 import HydrologySpatialLayout from './telemetering/HydrologySpatialLayout';
+import SourceMarker from '../../components/atoms/SourceMarker';
+import Banner from '../../components/ui/Banner';
+import PageHeader from '../../components/ui/PageHeader';
 import {
   ForecastDetail,
   ForecastMapCard,
@@ -92,6 +95,8 @@ export default function Telemetering() {
   const selectedMonthlyRecord = monthlyRecords.find(
     (item) => item.month === selectedMonthNumber,
   );
+  // Tombol berubah jadi "Edit data" begitu data bulan berjalan sudah ada.
+  const hasMonthlyRecord = Boolean(selectedMonthlyRecord);
   const rainfallImageQuery = useMonthlyHydrologyImageQuery(
     pltaId,
     operationYear,
@@ -255,35 +260,38 @@ export default function Telemetering() {
   ]);
 
   return (
-    <div className="flex flex-1 flex-col gap-5 animate-in fade-in duration-500">
-      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <h1 className="page-title">Telemetering</h1>
-          <p className="page-description">
-            Pantau kondisi hidrologi harian dan bulanan PLTA {plta.shortName}
-          </p>
-        </div>
-        <PlantSwitcher page="telemetering" />
-      </header>
+    <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
+      <PageHeader
+        title="Telemetering"
+        description={`Pantau kondisi hidrologi harian dan bulanan PLTA ${plta.shortName}`}
+        actions={<PlantSwitcher page="telemetering" />}
+      />
 
-      <section className="border-t border-[#e2e8f0] pt-5">
-        <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <h2 className="text-base font-semibold text-[#0f172a]">Hidrologi Bulanan</h2>
-          <span className="text-xs font-medium text-[#64748b]">{operationYear}</span>
+      <section>
+        <div className="mb-3.5 flex items-baseline justify-between gap-3">
+          <div>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-placeholder">
+              Bagian 1
+            </p>
+            <h2 className="section-title mt-1">Hidrologi Bulanan</h2>
+          </div>
+          <span className="font-mono text-xs font-medium text-text-muted">{operationYear}</span>
         </div>
 
         {monthlyQuery.isError && (
-          <div className="mb-4 flex flex-col gap-3 border-y border-red-100 bg-red-50/50 px-4 py-3 text-xs text-red-600 sm:flex-row sm:items-center sm:justify-between">
-            <span>{getHydrologyErrorMessage(monthlyQuery.error)}</span>
-            <button
-              type="button"
-              onClick={() => void monthlyQuery.refetch()}
-              className="inline-flex cursor-pointer items-center gap-1.5 self-start font-semibold hover:text-red-700"
-            >
-              <RefreshCw size={13} />
-              Coba lagi
-            </button>
-          </div>
+          <Banner tone="warning" title="Hidrologi bulanan belum lengkap" className="mb-4">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {getHydrologyErrorMessage(monthlyQuery.error)}
+              <button
+                type="button"
+                onClick={() => void monthlyQuery.refetch()}
+                className="inline-flex cursor-pointer items-center gap-1 font-semibold underline underline-offset-2"
+              >
+                <RefreshCw size={11} />
+                Coba lagi
+              </button>
+            </span>
+          </Banner>
         )}
 
         <MonthlyTable
@@ -292,35 +300,35 @@ export default function Telemetering() {
           isLoading={monthlyQuery.isLoading}
         />
 
-        <div className="mt-5 border-t border-[#e2e8f0] pt-5">
-          <div className="grid gap-5 xl:grid-cols-[minmax(380px,0.9fr)_minmax(0,1.1fr)]">
+        <div className="mt-5">
+          <div className="grid gap-6 xl:grid-cols-2">
             <div>
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-                <div>
-                  <h2 className="text-base font-semibold text-[#0f172a]">Ringkasan {selectedMonth}</h2>
-                </div>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="card-title">Ringkasan {selectedMonth}</h3>
                 <Button
                   type="button"
                   size="sm"
-                  leftIcon={<PencilLine size={15} />}
+                  variant="secondary"
+                  leftIcon={<PencilLine size={13} />}
                   disabled={monthlyQuery.isLoading}
                   onClick={() => setIsMonthlySheetOpen(true)}
-                  className="h-9 shrink-0 whitespace-nowrap"
+                  className="shrink-0 whitespace-nowrap text-brand-primary-strong"
                 >
-                  Input Data Bulanan
+                  {hasMonthlyRecord ? 'Edit data' : 'Input data'}
                 </Button>
               </div>
-              <div className="mt-4">
+              <div className="mt-2.5">
                 <ForecastDetail rows={forecastRows} />
               </div>
             </div>
-            <div className="border-t border-[#e2e8f0] pt-5 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
-              <div className="mb-3">
-                <h3 className="text-sm font-semibold text-[#0f172a]">Prakiraan Hujan</h3>
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="card-title">Prakiraan Hujan</h3>
+                <span className="shrink-0 text-[11px] text-text-muted">Sumber gambar BMKG</span>
               </div>
-              <div className="grid gap-4">
+              <div className="mt-2.5 grid grid-cols-2 gap-3">
                 <ForecastMapCard
-                  title="Prakiraan Curah Hujan"
+                  title="Curah Hujan"
                   subtitle={`${selectedMonth} ${operationYear}`}
                   imageUrl={rainfallImageUrl}
                   isLoading={rainfallImageQuery.isLoading}
@@ -330,8 +338,8 @@ export default function Telemetering() {
                     : undefined}
                 />
                 <ForecastMapCard
-                  title="Prakiraan Sifat Hujan"
-                  subtitle="Terhadap kondisi klimatologis"
+                  title="Sifat Hujan"
+                  subtitle={`${selectedMonth} ${operationYear}`}
                   imageUrl={rainfallCharacteristicImageUrl}
                   isLoading={rainfallCharacteristicImageQuery.isLoading}
                   isError={rainfallCharacteristicImageQuery.isError}
@@ -343,37 +351,38 @@ export default function Telemetering() {
             </div>
           </div>
         </div>
+        <div className="mt-4 flex items-start gap-2">
+          <Info size={14} className="mt-0.5 shrink-0 text-text-muted" />
+          <p className="max-w-[88ch] text-[11.5px] leading-[1.6] text-text-muted">
+            Prediksi hidrologi belum mempertimbangkan kebutuhan alokasi air, kesiapan unit
+            pembangkit, dan kebutuhan sistem kelistrikan.
+          </p>
+        </div>
       </section>
 
-      <div className="flex items-start gap-2 border-y border-[#e2e8f0] py-3">
-        <Info size={14} className="mt-0.5 shrink-0 text-[#64748b]" />
-        <p className="text-xs leading-5 text-[#64748b]">
-          Prediksi hidrologi belum mempertimbangkan kebutuhan alokasi air, kesiapan unit
-          pembangkit, dan kebutuhan sistem kelistrikan.
-        </p>
-      </div>
-
-      <section className="border-t border-[#e2e8f0] pt-5">
-        <div className="mb-4 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
+      {/* Garis #cbd5e1 lebih tegas dari garis biasa — ini batas antar bagian besar. */}
+      <section className="border-t border-border-strong pt-6">
+        <div className="mb-3.5 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
           <div>
-            <h2 className="text-base font-semibold text-[#0f172a]">Hidrologi Harian</h2>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-placeholder">
+              Bagian 2
+            </p>
+            <h2 className="section-title mt-1">Hidrologi Harian</h2>
             {daily && (
-              <p className="mt-1 text-xs text-[#64748b]">{formatHydrologyDate(daily.date)}</p>
+              <p className="mt-1 text-xs text-text-muted">{formatHydrologyDate(daily.date)}</p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-medium">
-            <span className={monitoringStream.status === 'open' ? 'text-emerald-600' : 'text-amber-600'}>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10.5px] font-medium uppercase tracking-[0.04em] text-text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className={`size-2 rounded-full ${monitoringStream.status === 'open' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
               {monitoringStream.status === 'open' ? 'Realtime aktif' : 'Realtime belum aktif'}
             </span>
+            <span className="flex items-center gap-1.5"><SourceMarker type="formula" />Formulasi</span>
             {(uploadTags?.length ?? 0) > 0 && (
-              <span className="text-cyan-700">Input</span>
+              <span className="flex items-center gap-1.5"><SourceMarker type="input" />Input</span>
             )}
-            <span className="text-[#b45309]">Formulasi</span>
-            <span className="text-[#94a3b8]">Konstanta</span>
-            <span className="inline-flex items-center gap-1 text-[#dc2626]">
-              <AlertTriangle size={11} />
-              Belum tersedia
-            </span>
+            <span className="flex items-center gap-1.5"><SourceMarker type="constant" />Konstanta</span>
+            <span className="flex items-center gap-1.5"><SourceMarker type="unavailable" />Belum tersedia</span>
             {(monitoringStream.status === 'error' || monitoringStream.status === 'closed') && (
               <button
                 type="button"
@@ -388,17 +397,19 @@ export default function Telemetering() {
         </div>
 
         {dashboardQuery.isError && (
-          <div className="mb-5 flex flex-col gap-3 border-y border-red-100 bg-red-50/50 px-4 py-3 text-xs text-red-600 sm:flex-row sm:items-center sm:justify-between">
-            <span>{getHydrologyErrorMessage(dashboardQuery.error)}</span>
-            <button
-              type="button"
-              onClick={() => void dashboardQuery.refetch()}
-              className="inline-flex cursor-pointer items-center gap-1.5 self-start font-semibold hover:text-red-700"
-            >
-              <RefreshCw size={13} />
-              Coba lagi
-            </button>
-          </div>
+          <Banner tone="warning" title="Sebagian data harian belum lengkap" className="mb-5">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {getHydrologyErrorMessage(dashboardQuery.error)}
+              <button
+                type="button"
+                onClick={() => void dashboardQuery.refetch()}
+                className="inline-flex cursor-pointer items-center gap-1 font-semibold underline underline-offset-2"
+              >
+                <RefreshCw size={11} />
+                Coba lagi
+              </button>
+            </span>
+          </Banner>
         )}
 
         {uploadTagsQuery.isError && (

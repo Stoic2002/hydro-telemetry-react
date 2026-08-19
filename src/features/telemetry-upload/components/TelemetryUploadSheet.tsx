@@ -220,7 +220,7 @@ export default function TelemetryUploadSheet({
         onSubmit={(event) => void submit(event)}
         className="flex flex-col gap-6"
       >
-        <section className="border-b border-slate-100 pb-5">
+        <section className="border-b border-surface-overlay pb-5">
           <p className="text-xs font-medium text-cyan-700">
             {target.parameter}
           </p>
@@ -249,7 +249,7 @@ export default function TelemetryUploadSheet({
             </select>
           </label>
         ) : (
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4 text-xs">
+          <div className="flex items-center justify-between border-b border-surface-overlay pb-4 text-xs">
             <span className="font-medium text-slate-500">Station</span>
             <span className="font-semibold text-slate-700">
               {station || 'Default'}
@@ -296,7 +296,7 @@ export default function TelemetryUploadSheet({
               </p>
             </div>
 
-            <div className="divide-y divide-slate-100 border-y border-slate-100">
+            <div className="divide-y divide-slate-100 border-y border-surface-overlay">
               {rows.map((row, index) => (
                 <div key={row.id} className="py-4">
                   <div className="mb-3 flex items-center justify-between">
@@ -309,7 +309,7 @@ export default function TelemetryUploadSheet({
                         disabled={isPending}
                         onClick={() => removeRow(row.id)}
                         aria-label={`Hapus data ${index + 1}`}
-                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -323,7 +323,7 @@ export default function TelemetryUploadSheet({
                         value={row.date}
                         disabled={isPending}
                         onChange={(event) => updateRow(row.id, 'date', event.target.value)}
-                        className="h-10 rounded-lg border border-slate-200 px-3 text-sm text-slate-800 outline-none focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+                        className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-slate-800 outline-none hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
                       />
                     </label>
                     <label className="flex flex-col gap-1.5 text-xs font-medium text-slate-500">
@@ -333,7 +333,7 @@ export default function TelemetryUploadSheet({
                         value={row.time}
                         disabled={isPending}
                         onChange={(event) => updateRow(row.id, 'time', event.target.value)}
-                        className="h-10 rounded-lg border border-slate-200 px-3 text-sm text-slate-800 outline-none focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+                        className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-slate-800 outline-none hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
                       />
                     </label>
                   </div>
@@ -346,7 +346,7 @@ export default function TelemetryUploadSheet({
                       disabled={isPending}
                       onChange={(event) => updateRow(row.id, 'value', event.target.value)}
                       placeholder="0"
-                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+                      className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-slate-800 outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
                     />
                   </label>
                 </div>

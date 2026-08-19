@@ -129,7 +129,7 @@ function PlantRouteError({ message, onRetry }: { message: string; onRetry: () =>
         <button
           type="button"
           onClick={onRetry}
-          className="mt-5 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-brand-primary-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40 focus:ring-offset-2"
+          className="mt-5 inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand-primary-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-cyan-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary-strong/40"
         >
           <RefreshCw size={15} />
           Coba lagi

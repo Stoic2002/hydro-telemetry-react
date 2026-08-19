@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, X } from 'lucide-react';
 import Button from '../atoms/Button';
 
 type ConfirmDialogVariant = 'danger' | 'warning' | 'primary';
@@ -23,15 +22,15 @@ const variantStyles: Record<ConfirmDialogVariant, {
   button: 'danger' | 'primary';
 }> = {
   danger: {
-    icon: 'bg-red-50 text-red-600 ring-red-100',
+    icon: 'bg-red-100 text-red-600',
     button: 'danger',
   },
   warning: {
-    icon: 'bg-amber-50 text-amber-600 ring-amber-100',
+    icon: 'bg-amber-100 text-amber-600',
     button: 'primary',
   },
   primary: {
-    icon: 'bg-cyan-50 text-brand-primary-strong ring-cyan-100',
+    icon: 'bg-cyan-100 text-brand-primary-strong',
     button: 'primary',
   },
 };
@@ -102,7 +101,7 @@ export default function ConfirmDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/32 p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isConfirming) onClose();
       }}
@@ -113,34 +112,23 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="w-full max-w-[440px] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)]"
+        className="w-full max-w-[360px] rounded-lg border border-border-subtle bg-white p-[22px] shadow-dialog"
       >
-        <div className="flex items-start gap-4 px-6 pt-6 pb-5">
-          <div className={`flex size-11 shrink-0 items-center justify-center rounded-full ring-4 ${styles.icon}`}>
-            {icon ?? <AlertTriangle size={21} strokeWidth={2.25} />}
-          </div>
-
-          <div className="min-w-0 flex-1 pt-0.5">
-            <h2 id={titleId} className="font-display text-lg font-bold tracking-[-0.02em] text-slate-900">
-              {title}
-            </h2>
-            <div id={descriptionId} className="mt-2 text-sm leading-6 text-slate-600">
-              {description}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            aria-label="Tutup dialog"
-            disabled={isConfirming}
-            onClick={onClose}
-            className="-mr-1 -mt-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <X size={18} />
-          </button>
+        <div className={`flex size-11 items-center justify-center rounded-full ${styles.icon}`}>
+          {icon ?? <span aria-hidden="true" className="font-mono text-[18px] font-semibold leading-none">!</span>}
         </div>
 
-        <div className="flex flex-col-reverse gap-2.5 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:flex-row sm:justify-end">
+        <h2 id={titleId} className="mt-3.5 text-base font-semibold text-text-primary">
+          {title}
+        </h2>
+        <div
+          id={descriptionId}
+          className="mt-1.5 text-[12.5px] leading-[1.6] text-text-muted [&_strong]:font-semibold [&_strong]:text-text-secondary"
+        >
+          {description}
+        </div>
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button
             ref={cancelButtonRef}
             type="button"

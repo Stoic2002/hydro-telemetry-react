@@ -74,7 +74,7 @@ export default function Sheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex justify-end bg-slate-950/40 backdrop-blur-[1px] animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex justify-end bg-slate-900/32 animate-in fade-in duration-200"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && isDismissible) onClose();
       }}
@@ -85,15 +85,15 @@ export default function Sheet({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className="flex h-full w-full max-w-[480px] flex-col border-l border-slate-200 bg-white shadow-[-24px_0_70px_-35px_rgba(15,23,42,0.45)] animate-in slide-in-from-right duration-300"
+        className="flex h-full w-full max-w-[480px] flex-col border-l border-border-subtle bg-white shadow-[-12px_0_32px_rgb(15_23_42/12%)] animate-in slide-in-from-right duration-300"
       >
-        <header className="flex items-start gap-4 border-b border-slate-100 px-6 py-5">
+        <header className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="font-display text-lg font-bold tracking-[-0.02em] text-slate-900">
+            <h2 id={titleId} className="text-[15px] font-semibold text-slate-900">
               {title}
             </h2>
             {description && (
-              <div id={descriptionId} className="mt-1 text-sm leading-5 text-slate-500">
+              <div id={descriptionId} className="mt-1 text-xs leading-[1.5] text-slate-500">
                 {description}
               </div>
             )}
@@ -105,18 +105,18 @@ export default function Sheet({
             aria-label="Tutup panel"
             disabled={!isDismissible}
             onClick={onClose}
-            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-border-subtle text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <X size={19} />
+            <X size={15} />
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
           {children}
         </div>
 
         {footer && (
-          <footer className="border-t border-slate-100 bg-slate-50/70 px-6 py-4">
+          <footer className="border-t border-border-subtle px-5 py-3.5">
             {footer}
           </footer>
         )}

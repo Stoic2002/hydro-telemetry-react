@@ -6,6 +6,7 @@ import {
 import { Building2, Database, Tags } from 'lucide-react';
 import Select from '../../../components/atoms/Select';
 import Skeleton from '../../../components/atoms/Skeleton';
+import Badge from '../../../components/atoms/Badge';
 import {
   usePlantCatalogQuery,
   usePLTAListQuery,
@@ -94,13 +95,13 @@ export function RiverBasinsCatalog() {
       onNextPage={() => setPage((current) => Math.min(current + 1, totalPages))}
     >
       {riverBasins.map((riverBasin) => (
-        <tr key={riverBasin.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-slate-50/60">
-          <td className="px-5 py-4 font-mono text-xs font-semibold text-slate-600">{riverBasin.code}</td>
-          <td className="px-5 py-4 text-sm font-semibold text-slate-900">{riverBasin.name}</td>
-          <td className="px-5 py-4 text-xs leading-5 text-slate-500">
+        <tr key={riverBasin.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-slate-50/60">
+          <td className="px-3.5 py-2.5 font-mono text-[11.5px] font-medium tabular-nums text-text-secondary">{riverBasin.code}</td>
+          <td className="px-3.5 py-2.5 text-[12.5px] font-medium text-text-primary">{riverBasin.name}</td>
+          <td className="px-3.5 py-2.5 text-[11.5px] leading-[1.5] text-text-muted">
             <span className="line-clamp-2">{riverBasin.description || '—'}</span>
           </td>
-          <td className="px-5 py-4 text-center text-sm font-semibold text-slate-700">
+          <td className="px-3.5 py-2.5 text-center text-[12.5px] font-medium text-text-secondary">
             {plantsCatalogQuery.isPending ? (
               <Skeleton className="mx-auto h-3.5 w-8 rounded-md" />
             ) : plantsCatalogQuery.isError ? '—' : (plantCountsByRiverBasin.get(riverBasin.id) ?? 0)}
@@ -181,40 +182,35 @@ export function PlantsCatalog({ onOpenTags }: { onOpenTags: (pltaId: string) => 
       onNextPage={() => setPage((current) => Math.min(current + 1, totalPages))}
     >
       {plants.map((plant) => (
-        <tr key={plant.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-slate-50/60">
-          <td className="px-5 py-4">
+        <tr key={plant.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-slate-50/60">
+          <td className="px-3.5 py-2.5">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate text-sm font-semibold text-slate-900">{plant.name}</span>
+              <span className="truncate text-[12.5px] font-medium text-text-primary">{plant.name}</span>
               <span className="font-mono text-[11px] font-medium text-slate-400">{plant.code}</span>
             </div>
           </td>
-          <td className="px-5 py-4 text-sm text-slate-600">
+          <td className="px-3.5 py-2.5 text-[12.5px] text-text-secondary">
             {riverBasinNames.get(plant.riverBasinId) ?? 'Wilayah sungai tidak ditemukan'}
           </td>
-          <td className="px-5 py-4 font-mono text-xs font-semibold text-slate-700">
+          <td className="px-3.5 py-2.5 font-mono text-[11.5px] font-medium tabular-nums text-text-secondary">
             {plant.capacityMw === null
               ? '—'
               : `${plant.capacityMw.toLocaleString('id-ID', { maximumFractionDigits: 2 })} MW`}
           </td>
-          <td className="px-5 py-4 font-mono text-xs text-slate-500">
+          <td className="px-3.5 py-2.5 font-mono text-[11.5px] text-text-muted">
             {formatCoordinate(plant.latitude)}, {formatCoordinate(plant.longitude)}
           </td>
-          <td className="px-5 py-4">
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-              plant.isActive
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-slate-100 text-slate-500'
-            }`}
-            >
-              <span className={`size-1.5 rounded-full ${plant.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+          <td className="px-3.5 py-2.5">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary">
+              <span className={`size-2 rounded-full ${plant.isActive ? 'bg-status-success-strong' : 'bg-slate-300'}`} />
               {plant.isActive ? 'Aktif' : 'Nonaktif'}
             </span>
           </td>
-          <td className="px-5 py-4">
+          <td className="px-3.5 py-2.5">
             <button
               type="button"
               onClick={() => onOpenTags(plant.id)}
-              className="cursor-pointer rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-brand-primary-strong hover:bg-cyan-100"
+              className="inline-flex h-[30px] cursor-pointer items-center rounded-sm border border-border-subtle bg-white px-2.5 text-[11.5px] font-semibold text-brand-primary-strong transition-colors hover:border-brand-tint-border hover:bg-brand-tint"
             >
               Lihat Parameter
             </button>
@@ -365,29 +361,22 @@ export function TagsCatalog({
       onNextPage={() => setPage((current) => Math.min(current + 1, totalPages))}
     >
       {tagsData.map((tag) => (
-        <tr key={tag.id} className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-slate-50/60">
-          <td className="px-5 py-4">
-            <span className="font-mono text-xs font-semibold text-slate-800">{tag.parameter}</span>
+        <tr key={tag.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-slate-50/60">
+          <td className="px-3.5 py-2.5">
+            <span className="font-mono text-[11.5px] font-medium text-text-primary">{tag.parameter}</span>
           </td>
-          <td className="px-5 py-4 text-sm text-slate-600">{tag.station || '—'}</td>
-          <td className="px-5 py-4">
-            <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] font-semibold uppercase text-slate-600">
-              {tag.protocol}
-            </span>
+          <td className="px-3.5 py-2.5 text-[12.5px] text-text-secondary">{tag.station || '—'}</td>
+          <td className="px-3.5 py-2.5">
+            <Badge tone="slate" mono>{tag.protocol}</Badge>
           </td>
-          <td className="max-w-72 px-5 py-4">
-            <span title={tag.address} className="block truncate font-mono text-xs text-slate-500">{tag.address || '—'}</span>
+          <td className="max-w-72 px-3.5 py-2.5">
+            <span title={tag.address} className="block truncate font-mono text-[11.5px] text-text-muted">{tag.address || '—'}</span>
           </td>
-          <td className="px-5 py-4 font-mono text-xs text-slate-600">{tag.scale} / {tag.offset}</td>
-          <td className="px-5 py-4 text-sm font-medium text-slate-600">{tag.unit || '—'}</td>
-          <td className="px-5 py-4">
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-              tag.enabled
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-slate-100 text-slate-500'
-            }`}
-            >
-              <span className={`size-1.5 rounded-full ${tag.enabled ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+          <td className="px-3.5 py-2.5 font-mono text-[11.5px] tabular-nums text-text-secondary">{tag.scale} / {tag.offset}</td>
+          <td className="px-3.5 py-2.5 text-[12.5px] text-text-secondary">{tag.unit || '—'}</td>
+          <td className="px-3.5 py-2.5">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary">
+              <span className={`size-2 rounded-full ${tag.enabled ? 'bg-status-success-strong' : 'bg-slate-300'}`} />
               {tag.enabled ? 'Aktif' : 'Nonaktif'}
             </span>
           </td>

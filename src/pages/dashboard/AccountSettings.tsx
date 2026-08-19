@@ -8,9 +8,12 @@ import {
   useChangeCurrentPasswordMutation,
   useUpdateCurrentUserMutation,
 } from '../../features/users/api/queries';
+import RoleBadge from '../../features/users/components/RoleBadge';
 import { useAuthStore } from '../../store/auth-store';
 import { useNotificationStore } from '../../store/notification-store';
 import Input from '../../components/atoms/Input';
+import Button from '../../components/atoms/Button';
+import PageHeader from '../../components/ui/PageHeader';
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(3, 'Nama minimal 3 karakter'),
@@ -25,7 +28,7 @@ const passwordSchema = z.object({
   confirmPassword: z.string().min(1, 'Konfirmasi password wajib diisi'),
 }).refine((values) => values.newPassword === values.confirmPassword, {
   path: ['confirmPassword'],
-  message: 'Konfirmasi password tidak sama',
+  message: 'Konfirmasi belum sama dengan password baru',
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -59,6 +62,7 @@ export default function AccountSettings() {
 
   const passwordForm = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
+    mode: 'onChange',
     defaultValues: {
       currentPassword: '',
       newPassword: '',
@@ -98,51 +102,75 @@ export default function AccountSettings() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-1">
-        <h1 className="page-title">Profil Saya</h1>
-        <p className="page-description">Perbarui identitas akun dan password Anda</p>
-      </div>
+      <PageHeader
+        title="Profil Saya"
+        description="Ubah data diri dan password akun Anda"
+      />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <section className="flex flex-col gap-6 rounded-2xl border border-[#e2e8f0] bg-white p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-[#ecfeff] text-[#0891b2]"><UserRound size={19} /></div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">Informasi Profil</h2>
-              <p className="text-xs text-slate-500">Username dan role dikelola oleh administrator.</p>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:items-start">
+        <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-white">
+          <div className="flex items-center gap-2.5 border-b border-border-subtle px-[18px] py-3.5">
+            <div className="flex size-[30px] shrink-0 items-center justify-center rounded-sm border border-brand-tint-border bg-brand-tint text-brand-primary-strong">
+              <UserRound size={16} />
             </div>
+            <span className="card-title">Informasi Profil</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
-            <div><span className="block text-xs text-slate-400">Username</span><span className="text-sm font-semibold text-slate-700">@{user?.username}</span></div>
-            <div><span className="block text-xs text-slate-400">Role</span><span className="text-sm font-semibold text-slate-700">{user?.role}</span></div>
-          </div>
-
-          <form onSubmit={profileForm.handleSubmit(submitProfile)} className="flex flex-col gap-5">
-            <Input label="Nama Lengkap" {...profileForm.register('fullName')} error={profileForm.formState.errors.fullName?.message} />
-            <Input label="Email" type="email" {...profileForm.register('email')} error={profileForm.formState.errors.email?.message} />
-            <button type="submit" disabled={updateProfileMutation.isPending} className="flex h-10 cursor-pointer items-center justify-center gap-2 self-end rounded-xl border-0 bg-[#0891b2] px-4 text-sm font-semibold text-white hover:bg-[#0e7490] disabled:cursor-not-allowed disabled:opacity-60">
-              <Save size={16} /> {updateProfileMutation.isPending ? 'Menyimpan...' : 'Simpan Profil'}
-            </button>
+          <form onSubmit={profileForm.handleSubmit(submitProfile)} className="flex flex-1 flex-col">
+            <div className="flex flex-col gap-4 p-[18px]">
+              <div className="flex flex-col gap-2.5 rounded-md bg-surface-overlay p-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-text-muted">Username</span>
+                  <span className="font-mono text-[12.5px] font-medium text-text-primary">@{user?.username}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-text-muted">Peran</span>
+                  {user?.role && <RoleBadge role={user.role} />}
+                </div>
+                <p className="text-[11px] leading-relaxed text-text-muted">
+                  Keduanya dikelola admin dan tidak bisa diubah dari halaman ini.
+                </p>
+              </div>
+              <Input label="Nama Lengkap" {...profileForm.register('fullName')} error={profileForm.formState.errors.fullName?.message} />
+              <Input label="Email" type="email" {...profileForm.register('email')} error={profileForm.formState.errors.email?.message} />
+            </div>
+            <div className="flex justify-end border-t border-border-subtle bg-surface-base px-[18px] py-3.5">
+              <Button type="submit" variant="primary" size="sm" leftIcon={<Save size={16} />} isLoading={updateProfileMutation.isPending}>
+                Simpan Profil
+              </Button>
+            </div>
           </form>
         </section>
 
-        <section className="flex flex-col gap-6 rounded-2xl border border-[#e2e8f0] bg-white p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><KeyRound size={19} /></div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">Ganti Password</h2>
-              <p className="text-xs text-slate-500">Setelah berhasil, Anda akan diminta masuk kembali.</p>
+        <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-white">
+          <div className="flex items-center gap-2.5 border-b border-border-subtle px-[18px] py-3.5">
+            <div className="flex size-[30px] shrink-0 items-center justify-center rounded-sm border border-amber-200 bg-amber-50 text-amber-600">
+              <KeyRound size={16} />
             </div>
+            <span className="card-title">Ganti Password</span>
           </div>
 
-          <form onSubmit={passwordForm.handleSubmit(submitPassword)} className="flex flex-col gap-5">
-            <Input label="Password Saat Ini" type="password" autoComplete="current-password" {...passwordForm.register('currentPassword')} error={passwordForm.formState.errors.currentPassword?.message} />
-            <Input label="Password Baru" type="password" autoComplete="new-password" {...passwordForm.register('newPassword')} error={passwordForm.formState.errors.newPassword?.message} />
-            <Input label="Konfirmasi Password Baru" type="password" autoComplete="new-password" {...passwordForm.register('confirmPassword')} error={passwordForm.formState.errors.confirmPassword?.message} />
-            <button type="submit" disabled={changePasswordMutation.isPending} className="flex h-10 cursor-pointer items-center justify-center gap-2 self-end rounded-xl border-0 bg-slate-800 px-4 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60">
-              <KeyRound size={16} /> {changePasswordMutation.isPending ? 'Memproses...' : 'Ubah Password'}
-            </button>
+          <form onSubmit={passwordForm.handleSubmit(submitPassword)} className="flex flex-1 flex-col">
+            <div className="flex flex-col gap-4 p-[18px]">
+              <p className="text-xs leading-relaxed text-text-muted">
+                Setelah password berubah, Anda akan keluar dari aplikasi dan perlu masuk kembali.
+              </p>
+              <Input label="Password Saat Ini" type="password" autoComplete="current-password" {...passwordForm.register('currentPassword')} error={passwordForm.formState.errors.currentPassword?.message} />
+              <Input label="Password Baru" type="password" autoComplete="new-password" {...passwordForm.register('newPassword')} error={passwordForm.formState.errors.newPassword?.message} />
+              <Input label="Konfirmasi Password Baru" type="password" autoComplete="new-password" {...passwordForm.register('confirmPassword')} error={passwordForm.formState.errors.confirmPassword?.message} />
+            </div>
+            <div className="flex justify-end border-t border-border-subtle bg-surface-base px-[18px] py-3.5">
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                leftIcon={<KeyRound size={16} />}
+                isLoading={changePasswordMutation.isPending}
+                disabled={!passwordForm.formState.isValid}
+              >
+                Ubah Password
+              </Button>
+            </div>
           </form>
         </section>
       </div>

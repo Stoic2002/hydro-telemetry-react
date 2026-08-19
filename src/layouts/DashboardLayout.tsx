@@ -33,6 +33,49 @@ import ConfirmDialog from "../components/ui/ConfirmDialog";
 import DashboardPageSkeleton from "../components/skeletons/DashboardPageSkeleton";
 import { getDashboardSkeletonVariant } from "../components/skeletons/dashboardSkeletonVariant";
 
+interface NavItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  collapsed: boolean;
+  end?: boolean;
+}
+
+function NavItem({ to, icon, label, collapsed, end }: NavItemProps) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        `flex h-10 items-center gap-2.5 overflow-hidden rounded-md px-3 whitespace-nowrap transition-colors ${
+          isActive ? "bg-brand-tint" : "hover:bg-slate-50"
+        } ${collapsed ? "justify-center px-0" : ""}`
+      }
+      title={collapsed ? label : undefined}
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            aria-hidden="true"
+            className={`shrink-0 ${isActive ? "text-brand-primary-strong" : "text-slate-400"}`}
+          >
+            {icon}
+          </span>
+          {!collapsed && (
+            <span
+              className={`font-sans text-sm ${
+                isActive ? "font-semibold text-brand-primary-strong" : "text-text-secondary"
+              }`}
+            >
+              {label}
+            </span>
+          )}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -97,21 +140,21 @@ export default function DashboardLayout() {
         }`}
       >
         {/* Sidebar Header */}
-        <div className="relative flex h-[72px] shrink-0 items-center border-b border-border-subtle px-5 gap-3 transition-all duration-300">
+        <div className="relative flex h-[72px] shrink-0 items-center gap-2.5 border-b border-border-subtle px-4 transition-all duration-300">
           <div
-            className={`flex items-center gap-3 overflow-hidden transition-all duration-300 ${collapsed ? "justify-center w-full" : "w-full"}`}
+            className={`flex items-center gap-2.5 overflow-hidden transition-all duration-300 ${collapsed ? "w-full justify-center" : "w-full"}`}
           >
             <img
               src="/logo.png"
               alt="Logo"
-              className="w-9 h-9 object-contain shrink-0 rounded-lg"
+              className="size-9 shrink-0 rounded-md object-contain"
             />
             {!collapsed && (
               <div className="flex flex-col whitespace-nowrap">
-                <span className="text-[#0f172a] font-display text-[15px] font-bold leading-normal tracking-[-0.375px]">
+                <span className="font-sans text-[15px] font-bold leading-tight text-text-primary">
                   PLTA Monitoring
                 </span>
-                <span className="text-[#94a3b8] font-sans text-[11px] leading-normal">
+                <span className="text-text-muted font-sans text-[11px] leading-normal">
                   Jawa Tengah
                 </span>
               </div>
@@ -122,7 +165,7 @@ export default function DashboardLayout() {
           <button
             type="button"
             aria-label={collapsed ? "Perluas menu navigasi" : "Ciutkan menu navigasi"}
-            className="absolute -right-3 top-6 z-50 hidden h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-border-subtle bg-white text-slate-400 transition-all duration-200 hover:border-brand-primary-strong hover:text-brand-primary-strong lg:flex"
+            className="absolute -right-3 top-[88px] z-50 hidden size-6 cursor-pointer items-center justify-center rounded-full border border-border-subtle bg-white text-slate-500 transition-colors hover:border-brand-primary-strong hover:text-brand-primary-strong lg:flex"
             onClick={() => setCollapsed(!collapsed)}
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -131,7 +174,7 @@ export default function DashboardLayout() {
           <button
             type="button"
             aria-label="Tutup menu navigasi"
-            className="ml-auto flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
+            className="ml-auto flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 lg:hidden"
             onClick={() => setIsMobileSidebarOpen(false)}
           >
             <X size={19} />
@@ -140,165 +183,74 @@ export default function DashboardLayout() {
 
         {/* Sidebar Navigation Items */}
         <nav
-          className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto"
+          className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3"
           onClick={() => setIsMobileSidebarOpen(false)}
         >
-          {/* Overview */}
-          <NavLink
+          <NavItem
             to={getUnscopedDashboardPath("overview")}
             end
-            className={({ isActive }) =>
-              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                isActive
-                  ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                  : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-              } ${collapsed ? "justify-center px-0" : ""}`
-            }
-            title={collapsed ? "Overview" : undefined}
-          >
-            <LayoutDashboard size={18} className="shrink-0 text-current" />
-            {!collapsed && <span className="font-sans text-sm">Overview</span>}
-          </NavLink>
-
-          {/* Telemetering */}
-          <NavLink
+            collapsed={collapsed}
+            icon={<LayoutDashboard size={18} strokeWidth={1.75} />}
+            label="Overview"
+          />
+          <NavItem
             to={getSelectedDashboardPath("telemetering")}
-            className={({ isActive }) =>
-              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                isActive
-                  ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                  : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-              } ${collapsed ? "justify-center px-0" : ""}`
-            }
-            title={collapsed ? "Telemetering" : undefined}
-          >
-            <Activity size={18} className="shrink-0 text-current" />
-            {!collapsed && (
-              <span className="font-sans text-sm">Telemetering</span>
-            )}
-          </NavLink>
-
-          {/* Forecasting (Machine Learning) */}
-          <NavLink
+            collapsed={collapsed}
+            icon={<Activity size={18} strokeWidth={1.75} />}
+            label="Telemetering"
+          />
+          <NavItem
             to={getPLTADashboardPath(FORECASTING_PLTA_ID, "forecasting")}
-            className={({ isActive }) =>
-              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                isActive
-                  ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                  : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-              } ${collapsed ? "justify-center px-0" : ""}`
-            }
-            title={collapsed ? "Forecasting" : undefined}
-          >
-            <TrendingUp size={18} className="shrink-0 text-current" />
-            {!collapsed && (
-              <span className="font-sans text-sm">Forecasting</span>
-            )}
-          </NavLink>
-
-          {/* Tren & Grafik */}
-          <NavLink
+            collapsed={collapsed}
+            icon={<TrendingUp size={18} strokeWidth={1.75} />}
+            label="Forecasting"
+          />
+          <NavItem
             to={getSelectedDashboardPath("trends")}
-            className={({ isActive }) =>
-              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                isActive
-                  ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                  : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-              } ${collapsed ? "justify-center px-0" : ""}`
-            }
-            title={collapsed ? "Tren & Grafik" : undefined}
-          >
-            <BarChart3 size={18} className="shrink-0 text-current" />
-            {!collapsed && (
-              <span className="font-sans text-sm">Tren &amp; Grafik</span>
-            )}
-          </NavLink>
-
-          {/* Laporan */}
-          <NavLink
+            collapsed={collapsed}
+            icon={<BarChart3 size={18} strokeWidth={1.75} />}
+            label="Tren & Grafik"
+          />
+          <NavItem
             to={getSelectedDashboardPath("laporan")}
-            className={({ isActive }) =>
-              `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                isActive
-                  ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                  : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-              } ${collapsed ? "justify-center px-0" : ""}`
-            }
-            title={collapsed ? "Laporan" : undefined}
-          >
-            <FileText size={18} className="shrink-0 text-current" />
-            {!collapsed && <span className="font-sans text-sm">Laporan</span>}
-          </NavLink>
+            collapsed={collapsed}
+            icon={<FileText size={18} strokeWidth={1.75} />}
+            label="Laporan"
+          />
 
           {canAccessDataTools && (
             <>
-              {/* Input GHW */}
-              <NavLink
+              <NavItem
                 to={getSelectedDashboardPath("input-ghw")}
-                className={({ isActive }) =>
-                  `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                    isActive
-                      ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                      : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-                  } ${collapsed ? "justify-center px-0" : ""}`
-                }
-                title={collapsed ? "Input GHW" : undefined}
-              >
-                <Edit3 size={18} className="shrink-0 text-current" />
-                {!collapsed && (
-                  <span className="font-sans text-sm">Input GHW</span>
-                )}
-              </NavLink>
-
-              {/* Katalog Data */}
-              <NavLink
+                collapsed={collapsed}
+                icon={<Edit3 size={18} strokeWidth={1.75} />}
+                label="Input GHW"
+              />
+              <NavItem
                 to="/dashboard/catalog"
                 end
-                className={({ isActive }) =>
-                  `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                    isActive
-                      ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                      : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-                  } ${collapsed ? "justify-center px-0" : ""}`
-                }
-                title={collapsed ? "Katalog Data" : undefined}
-              >
-                <Database size={18} className="shrink-0 text-current" />
-                {!collapsed && (
-                  <span className="font-sans text-sm">Katalog Data</span>
-                )}
-              </NavLink>
+                collapsed={collapsed}
+                icon={<Database size={18} strokeWidth={1.75} />}
+                label="Katalog Data"
+              />
             </>
           )}
 
-          {/* User Management */}
           {user &&
             (user.role === "Super Admin" || user.role === "Admin UBP") && (
-              <NavLink
+              <NavItem
                 to={getSelectedDashboardPath("user-management")}
-                className={({ isActive }) =>
-                  `flex h-10 items-center rounded-[10px] px-3 gap-3 transition-colors overflow-hidden whitespace-nowrap ${
-                    isActive
-                      ? "bg-[#ecfeff] text-[#0891b2] font-semibold"
-                      : "text-[#334155] hover:bg-slate-50 hover:text-slate-900"
-                  } ${collapsed ? "justify-center px-0" : ""}`
-                }
-                title={collapsed ? "User Management" : undefined}
-              >
-                <Users size={18} className="shrink-0 text-current" />
-                {!collapsed && (
-                  <span className="font-sans text-sm">User Management</span>
-                )}
-              </NavLink>
+                collapsed={collapsed}
+                icon={<Users size={18} strokeWidth={1.75} />}
+                label="User Management"
+              />
             )}
         </nav>
 
         {/* Sidebar Footer / Profile Info (No Shadows) */}
         <div
-          className={`h-[68px] border-t border-border-subtle flex shrink-0 items-center transition-all duration-300 ${
-            collapsed
-              ? "flex-col justify-center px-2 py-2 h-auto gap-2"
-              : "px-5 justify-between gap-3"
+          className={`flex h-[68px] shrink-0 items-center border-t border-border-subtle transition-all duration-300 ${
+            collapsed ? "h-auto flex-col justify-center gap-2 px-2 py-2" : "justify-between gap-2.5 px-4"
           }`}
         >
           {user && (
@@ -309,45 +261,32 @@ export default function DashboardLayout() {
                 navigate(getSelectedDashboardPath("account"));
               }}
               title="Profil Saya"
-              className={`flex cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left min-w-0 ${collapsed ? "justify-center w-full" : "flex-1"}`}
+              className={`flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden border-0 bg-transparent p-0 text-left ${collapsed ? "w-full justify-center" : "flex-1"}`}
             >
-              <div className="size-9 flex shrink-0 justify-center items-center bg-[#f1f5f9] rounded-full border border-border-subtle text-[#0891b2] font-sans text-[13px] font-semibold leading-normal">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-overlay font-sans text-xs font-semibold leading-none text-slate-600">
                 {getInitials(user.name)}
               </div>
               {!collapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[#0f172a] font-sans text-[13px] font-medium truncate">
+                  <span className="text-text-primary font-sans text-[13px] font-medium truncate">
                     {user.name}
                   </span>
-                  <span className="text-[#94a3b8] font-sans text-[11px] truncate">
+                  <span className="text-text-muted font-sans text-[11px] truncate">
                     {user.role}
                   </span>
                 </div>
               )}
             </button>
           )}
-          {!collapsed && (
-            <button
-              type="button"
-              aria-label="Keluar dari aplikasi"
-              className="text-[#94a3b8] hover:text-red-500 transition-colors shrink-0 focus:outline-none cursor-pointer"
-              onClick={() => setIsLogoutDialogOpen(true)}
-              title="Keluar"
-            >
-              <LogOut size={16} />
-            </button>
-          )}
-          {collapsed && (
-            <button
-              type="button"
-              aria-label="Keluar dari aplikasi"
-              className="p-1 rounded-md text-[#94a3b8] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 focus:outline-none cursor-pointer"
-              onClick={() => setIsLogoutDialogOpen(true)}
-              title="Keluar"
-            >
-              <LogOut size={16} />
-            </button>
-          )}
+          <button
+            type="button"
+            aria-label="Keluar dari aplikasi"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40"
+            onClick={() => setIsLogoutDialogOpen(true)}
+            title="Keluar"
+          >
+            <LogOut size={17} strokeWidth={1.75} />
+          </button>
         </div>
       </aside>
 
@@ -361,7 +300,7 @@ export default function DashboardLayout() {
           <button
             type="button"
             aria-label="Buka menu navigasi"
-            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border-subtle text-slate-600 hover:bg-slate-50"
             onClick={() => {
               setCollapsed(false);
               setIsMobileSidebarOpen(true);
@@ -369,14 +308,14 @@ export default function DashboardLayout() {
           >
             <Menu size={20} />
           </button>
-          <img src="/logo.png" alt="" className="size-8 rounded-lg object-contain" />
+          <img src="/logo.png" alt="" className="size-8 rounded-md object-contain" />
           <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
             PLTA Monitoring
           </span>
         </header>
 
         {/* Page Content */}
-        <main className="mx-auto w-full min-w-0 max-w-[1440px] flex-1 p-3 sm:p-4 lg:p-5 2xl:p-6">
+        <main className="mx-auto w-full min-w-0 max-w-[1440px] flex-1 p-3 sm:p-4 lg:p-6">
           <Suspense
             fallback={<DashboardPageSkeleton variant={loadingVariant} />}
           >

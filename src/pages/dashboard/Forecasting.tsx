@@ -1,8 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-} from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import {
   Area,
   CartesianGrid,
@@ -13,8 +10,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import Select from '../../components/atoms/Select';
+import Badge from '../../components/atoms/Badge';
+import SegmentedControl from '../../components/atoms/SegmentedControl';
 import Skeleton from '../../components/atoms/Skeleton';
+import Banner from '../../components/ui/Banner';
+import { chartValueDomain } from '../../shared/utils/chart';
+import PageHeader from '../../components/ui/PageHeader';
+import ErrorState from '../../components/ui/ErrorState';
 import {
   FORECASTING_PLTA_ID,
   FORECASTING_PLTA_NAME,
@@ -99,7 +101,7 @@ function ForecastTooltip({ active, payload, unit }: ForecastTooltipProps) {
   ].filter((item) => item.value !== undefined);
 
   return (
-    <div className="min-w-48 rounded-xl border border-slate-700 bg-slate-950/95 p-3 text-white shadow-xl">
+    <div className="min-w-48 rounded-md border border-slate-700 bg-slate-900/95 p-3 text-white shadow-xl">
       <p className="text-[11px] font-medium text-slate-300">{formatDateTime(point.time)}</p>
       <div className="mt-2 space-y-1.5">
         {values.map((item) => (
@@ -170,56 +172,73 @@ export default function Forecasting() {
     );
   }, [actualQuery.data?.points, series?.points]);
 
+  const yDomain = useMemo(() => chartValueDomain(
+    chartData.flatMap((datum) => [datum.actual, datum.forecast, datum.p10, datum.p90]
+      .filter((value): value is number => typeof value === 'number')),
+  ), [chartData]);
+
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <header>
-        <div>
-          <h1 className="page-title">Forecasting</h1>
-          <p className="page-description">Prediksi ML terbaru untuk PLTA {FORECASTING_PLTA_NAME}</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Forecasting"
+        description={`Prediksi ML terbaru untuk PLTA ${FORECASTING_PLTA_NAME}`}
+        actions={(
+          <span className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border-subtle bg-white px-3 text-[13px] font-medium text-text-primary">
+            <Calendar size={15} className="shrink-0 text-text-muted" />
+            PLTA {FORECASTING_PLTA_NAME}
+          </span>
+        )}
+      />
 
-      <section className="flex flex-col gap-4 border-y border-slate-200 py-4 sm:flex-row sm:items-end">
-        <Select
-          label="Parameter"
-          value={parameter}
-          onChange={(event) => setParameter(event.target.value as ForecastParameter)}
-          options={PARAMETER_OPTIONS}
-          className="w-full sm:max-w-xs"
-        />
-        <Select
-          label="Horizon"
-          value={horizon}
-          onChange={(event) => setHorizon(Number(event.target.value) as ForecastHorizon)}
-          options={HORIZON_OPTIONS}
-          className="w-full sm:max-w-xs"
-        />
+      <section className="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:gap-6">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-text-muted">Parameter</span>
+          <SegmentedControl
+            ariaLabel="Parameter forecasting"
+            value={parameter}
+            onChange={setParameter}
+            options={PARAMETER_OPTIONS}
+          />
+        </div>
+        <span className="hidden h-5 w-px bg-border-subtle sm:block" />
+        <div className="flex items-center gap-2.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-text-muted">Horizon</span>
+          <SegmentedControl
+            ariaLabel="Horizon forecasting"
+            value={horizon}
+            onChange={setHorizon}
+            options={HORIZON_OPTIONS}
+          />
+        </div>
       </section>
 
       {forecastQuery.isLoading ? (
         <div className="flex flex-col gap-5" role="status" aria-label="Memuat Forecasting">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }, (_, index) => <Skeleton key={`forecast-kpi-${index}`} className="h-24 rounded-xl" />)}
+            {Array.from({ length: 4 }, (_, index) => <Skeleton key={`forecast-kpi-${index}`} className="h-24 rounded-md" />)}
           </div>
-          <Skeleton className="h-[430px] rounded-xl" />
+          <Skeleton className="h-[430px] rounded-md" />
           <span className="sr-only">Memuat Forecasting...</span>
         </div>
       ) : forecastQuery.isError ? (
-        <section className="flex min-h-80 flex-col items-center justify-center gap-3 rounded-xl border border-red-100 bg-white px-6 text-center">
-          <AlertTriangle size={22} className="text-red-500" />
-          <p className="text-sm font-semibold text-red-600">{errorMessage(forecastQuery.error)}</p>
-          <button type="button" onClick={() => void forecastQuery.refetch()} className="cursor-pointer text-xs font-semibold text-cyan-700 hover:text-cyan-800">Coba lagi</button>
+        <section className="rounded-md border border-border-subtle bg-white">
+          <ErrorState
+            title="Prediksi belum bisa dimuat"
+            description={errorMessage(forecastQuery.error)}
+            isRetrying={forecastQuery.isFetching}
+            onRetry={() => void forecastQuery.refetch()}
+            className="py-12"
+          />
         </section>
       ) : (
         <>
           {series?.accuracy && !series.accuracy.isPresentable && (
-            <div className="flex items-start gap-2 border-y border-amber-200 bg-amber-50/60 px-4 py-3 text-xs leading-5 text-amber-800">
-              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-              Akurasi prediksi saat ini belum layak disajikan sebagai acuan tunggal. Gunakan bersama data aktual dan pertimbangan operator.
-            </div>
+            <Banner tone="warning" title="Akurasi model belum layak jadi acuan tunggal">
+              Gunakan bersama data aktual dan pertimbangan operator.
+            </Banner>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 divide-y divide-border-subtle overflow-hidden rounded-md border border-border-subtle bg-white sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
             {[
               {
                 label: 'Prediksi awal',
@@ -242,21 +261,21 @@ export default function Forecasting() {
                 detail: `${points.length} titik · horizon ${horizon} jam`,
               },
             ].map((item) => (
-              <article key={item.label} className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">{item.label}</p>
-                <p className="mt-2 text-xl font-semibold text-slate-900">
+              <div key={item.label} className="p-4">
+                <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-text-muted">{item.label}</p>
+                <p className="mt-1.5 font-mono text-xl font-semibold tabular-nums text-text-primary">
                   {item.value}
-                  {item.value !== 'N/A' && <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>}
+                  {item.value !== 'N/A' && <span className="ml-1 text-xs font-medium text-text-muted">{unit}</span>}
                 </p>
-                <p className="mt-1 text-[11px] text-slate-400">{item.detail}</p>
-              </article>
+                <p className="mt-1 text-[11px] text-text-muted">{item.detail}</p>
+              </div>
             ))}
           </div>
 
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-start">
+          <section className="overflow-hidden rounded-md border border-border-subtle bg-white">
+            <div className="flex flex-col justify-between gap-3 border-b border-surface-overlay px-5 py-4 sm:flex-row sm:items-start">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">{series?.label ?? PARAMETER_OPTIONS.find((item) => item.value === parameter)?.label}</h2>
+                <h2 className="section-title">{series?.label ?? PARAMETER_OPTIONS.find((item) => item.value === parameter)?.label}</h2>
                 <p className="mt-1 text-xs text-slate-500">Aktual historis dan prediksi P50 dari model terbaru.</p>
               </div>
               <div className="text-left text-[11px] text-slate-400 sm:text-right">
@@ -282,6 +301,7 @@ export default function Forecasting() {
                     axisLine={false}
                     tickLine={false}
                     width={58}
+                    domain={yDomain}
                     tick={{ fill: '#64748b', fontSize: 11 }}
                     tickFormatter={(value: number) => formatNumber(value, Math.abs(value) >= 100 ? 0 : 1)}
                   />
@@ -292,7 +312,7 @@ export default function Forecasting() {
                   <Line type="monotone" dataKey="forecast" name="Prediksi P50" stroke="#0891b2" strokeWidth={2.75} dot={false} activeDot={{ r: 5 }} connectNulls={false} />
                 </ComposedChart>
               </ResponsiveContainer>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 px-2 pt-3 text-[11px] text-slate-500">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-surface-overlay px-2 pt-3 text-[11px] text-slate-500">
                 <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-slate-500" />Aktual</span>
                 <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-cyan-700" />Prediksi P50</span>
                 {points.some((point) => point.valueP10 !== null && point.valueP90 !== null) && (
@@ -302,41 +322,35 @@ export default function Forecasting() {
             </div>
           </section>
 
-          <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-            <section className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="flex items-center gap-2">
-                {series?.accuracy?.isPresentable ? (
-                  <CheckCircle2 size={18} className="text-emerald-600" />
-                ) : (
-                  <AlertTriangle size={18} className="text-amber-600" />
-                )}
-                <h2 className="text-sm font-semibold text-slate-900">Kelayakan Prediksi</h2>
-              </div>
-              <div className="mt-4 divide-y divide-slate-100 text-sm">
-                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Status</span><span className={`font-semibold ${series?.accuracy?.isPresentable ? 'text-emerald-600' : 'text-amber-600'}`}>{series?.accuracy?.isPresentable ? 'Layak' : 'Perlu kehati-hatian'}</span></div>
-                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Skill</span><span className="font-semibold text-slate-800">{series?.accuracy?.skill === null || series?.accuracy?.skill === undefined ? 'N/A' : formatNumber(series.accuracy.skill, 2)}</span></div>
-                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Sampel</span><span className="font-semibold text-slate-800">{series?.accuracy?.sampleCount ?? 0}</span></div>
-                <div className="flex justify-between gap-4 py-3"><span className="text-slate-500">Jendela</span><span className="font-semibold text-slate-800">{series?.accuracy?.windowDays ?? 0} hari</span></div>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+            <section>
+              <h2 className="card-title">Kelayakan Prediksi</h2>
+              <div className="mt-2.5 divide-y divide-surface-overlay border-t border-border-subtle text-sm">
+                <div className="flex items-center justify-between gap-4 py-2.5">
+                  <span className="text-[12.5px] text-text-secondary">Status</span>
+                  <Badge tone={series?.accuracy?.isPresentable ? 'green' : 'amber'}>
+                    {series?.accuracy?.isPresentable ? 'Layak' : 'Layak dengan catatan'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-2.5"><span className="text-[12.5px] text-text-secondary">Skill score</span><span className="font-mono text-[13px] font-medium tabular-nums text-text-primary">{series?.accuracy?.skill === null || series?.accuracy?.skill === undefined ? 'N/A' : formatNumber(series.accuracy.skill, 2)}</span></div>
+                <div className="flex items-center justify-between gap-4 py-2.5"><span className="text-[12.5px] text-text-secondary">Sampel</span><span className="font-mono text-[13px] font-medium text-text-primary">{series?.accuracy?.sampleCount ?? 0} titik</span></div>
+                <div className="flex items-center justify-between gap-4 py-2.5"><span className="text-[12.5px] text-text-secondary">Jendela data</span><span className="font-mono text-[13px] font-medium text-text-primary">{series?.accuracy?.windowDays ?? 0} hari</span></div>
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h2 className="text-sm font-semibold text-slate-900">Detail Prediksi</h2>
-                <p className="mt-1 text-xs text-slate-500">P50 adalah nilai utama; P10–P90 ditampilkan bila model menyediakannya.</p>
-              </div>
-              <div className="max-h-[420px] overflow-auto">
-                <table className="w-full min-w-[620px] border-collapse text-left">
-                  <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-[0.06em] text-slate-500">
-                    <tr><th className="px-5 py-3 font-semibold">Waktu</th><th className="px-4 py-3 text-right font-semibold">P50</th><th className="px-4 py-3 text-right font-semibold">P10</th><th className="px-5 py-3 text-right font-semibold">P90</th></tr>
+            <section className="overflow-hidden rounded-md border border-border-subtle bg-white">
+              <div className="max-h-[222px] overflow-auto">
+                <table className="w-full min-w-[480px] border-collapse text-left">
+                  <thead className="sticky top-0 z-10 bg-surface-overlay text-[10.5px] uppercase tracking-[0.06em] text-text-muted">
+                    <tr><th className="px-3.5 py-2 font-semibold">Waktu</th><th className="px-3.5 py-2 font-semibold">P50</th><th className="px-3.5 py-2 font-semibold">P10</th><th className="px-3.5 py-2 font-semibold">P90</th></tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-surface-overlay">
                     {points.map((point) => (
-                      <tr key={point.time} className="text-sm text-slate-600 hover:bg-slate-50/70">
-                        <td className="px-5 py-3">{formatDateTime(point.time)}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-slate-800">{formatNumber(point.value, 2)} {unit}</td>
-                        <td className="px-4 py-3 text-right">{point.valueP10 === null ? '—' : `${formatNumber(point.valueP10, 2)} ${unit}`}</td>
-                        <td className="px-5 py-3 text-right">{point.valueP90 === null ? '—' : `${formatNumber(point.valueP90, 2)} ${unit}`}</td>
+                      <tr key={point.time} className="font-mono text-xs text-text-secondary hover:bg-slate-50/70">
+                        <td className="px-3.5 py-2">{formatDateTime(point.time)}</td>
+                        <td className="px-3.5 py-2 font-medium text-text-primary">{formatNumber(point.value, 2)}</td>
+                        <td className="px-3.5 py-2 text-text-muted">{point.valueP10 === null ? '—' : formatNumber(point.valueP10, 2)}</td>
+                        <td className="px-3.5 py-2 text-text-muted">{point.valueP90 === null ? '—' : formatNumber(point.valueP90, 2)}</td>
                       </tr>
                     ))}
                   </tbody>

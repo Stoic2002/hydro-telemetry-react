@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -6,57 +6,57 @@
   --font-display: 'Space Grotesk', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Color Palette - Light Theme Surfaces */
+  /* Permukaan */
   --color-surface-base: #f8fafc;
   --color-surface-raised: #ffffff;
   --color-surface-overlay: #f1f5f9;
-  
-  /* Border */
-  --color-border-subtle: #e2e8f0;
 
-  /* Text Colors */
+  /* Garis */
+  --color-border-subtle: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  /* Teks */
   --color-text-primary: #0f172a;
   --color-text-secondary: #334155;
   --color-text-muted: #64748b;
+  --color-text-placeholder: #94a3b8;
 
-  /* Brand Colors */
+  /* Brand */
   --color-brand-primary: #22d3ee;
   --color-brand-primary-strong: #0891b2;
+  --color-brand-primary-pressed: #0e7490;
+  --color-brand-tint: #ecfeff;
+  --color-brand-tint-border: #a5f3fc;
 
-  /* Status Colors */
+  /* Status — pasangan isi (fill) dan teks (strong) */
   --color-status-success: #34d399;
+  --color-status-success-strong: #22c55e;
   --color-status-warning: #fbbf24;
+  --color-status-warning-strong: #f59e0b;
   --color-status-danger: #f87171;
+  --color-status-danger-strong: #ef4444;
   --color-status-info: #60a5fa;
 
-  /* Chart Colors */
+  /* Zona hidrologi */
+  --color-zone-hulu: #22d3ee;
+  --color-zone-dam: #f59e0b;
+  --color-zone-hilir: #34d399;
+
+  /* Seri grafik */
   --color-chart-series-1: #22d3ee;
   --color-chart-series-2: #a78bfa;
   --color-chart-series-3: #34d399;
   --color-chart-series-4: #fbbf24;
 
-  /* Corner Radius */
+  /* Radius — kartu & field 10px, overlay 14px */
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-lg: 14px;
 
-  /* Legacy Colors for backward compatibility during migration */
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #f1f5f9;
-  --color-slate-200: #e2e8f0;
-  --color-slate-300: #cbd5e1;
-  --color-slate-400: #94a3b8;
-  --color-slate-500: #64748b;
-  --color-slate-600: #475569;
-  --color-slate-700: #334155;
-  --color-slate-800: #1e293b;
-  --color-slate-900: #0f172a;
-  --color-pln-teal: #14a2ba;
-  --color-pln-yellow: #efe62f;
-  --color-status-aman: #22c55e;
-  --color-status-siaga: #f59e0b;
-  --color-status-kritis: #ef4444;
-  --color-status-offline: #94a3b8;
+  /* Elevasi — hanya untuk overlay, kartu tidak pernah punya bayangan */
+  --shadow-overlay: 0 6px 16px rgb(15 23 42 / 8%);
+  --shadow-panel: 0 12px 32px rgb(15 23 42 / 12%);
+  --shadow-dialog: 0 24px 56px rgb(15 23 42 / 18%);
 }
 
 @keyframes skeleton-shimmer {
@@ -85,8 +85,26 @@
   content: '';
 }
 
+/* Indikator refetch — garis tipis di atas tabel, isi tabel tetap tampil */
+.refetch-bar {
+  position: relative;
+  overflow: hidden;
+  height: 2px;
+  background: #e8edf3;
+}
+
+.refetch-bar::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, #22d3ee, transparent);
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  content: '';
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-shimmer::after {
+  .skeleton-shimmer::after,
+  .refetch-bar::after {
     animation: none;
   }
 }
@@ -106,31 +124,29 @@
   .page-description {
     @apply font-sans text-[13px] leading-5 text-slate-500;
   }
-}
 
-/* Custom Utilities for Reusable Patterns */
-@layer utilities {
-  .card-light {
-    @apply bg-white border border-slate-200 rounded-xl;
-  }
-  
-  .btn-primary {
-    @apply bg-pln-teal text-white font-medium px-4 py-2 rounded-md hover:bg-[#118a9e] transition-colors focus:ring-2 focus:ring-pln-teal/50 outline-none;
+  .section-title {
+    @apply font-sans text-base font-semibold text-slate-900;
   }
 
-  .btn-yellow {
-    @apply bg-pln-yellow text-slate-900 font-semibold px-4 py-2 rounded-md hover:bg-[#d6cc27] transition-colors;
+  .card-title {
+    @apply font-sans text-sm font-semibold text-slate-900;
   }
 
-  .btn-ghost {
-    @apply bg-transparent text-slate-600 font-medium px-4 py-2 rounded-md hover:bg-slate-100 transition-colors;
+  .field-label {
+    @apply font-sans text-xs font-semibold text-slate-500;
   }
 
-  .input-light {
-    @apply w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-slate-800 focus:border-pln-teal focus:ring-1 focus:ring-pln-teal outline-none transition-shadow;
+  .table-head-cell {
+    @apply font-sans text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500;
   }
 
-  .label-light {
-    @apply block text-sm font-medium text-slate-600 mb-1;
+  /* Nilai telemetri — angka selalu tabular, satuan selalu lebih redup */
+  .metric-value {
+    @apply font-mono font-medium tabular-nums text-slate-900;
+  }
+
+  .metric-unit {
+    @apply text-[0.8em] font-normal text-slate-400;
   }
 }

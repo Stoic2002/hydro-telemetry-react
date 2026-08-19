@@ -1,5 +1,6 @@
 import { ImageOff, Upload } from 'lucide-react';
 import Skeleton from '../../../components/atoms/Skeleton';
+import SourceMarker from '../../../components/atoms/SourceMarker';
 import type { MonthlyHydrology } from '../../../features/hydrology/model';
 import {
   MONTHS,
@@ -8,26 +9,31 @@ import {
 } from './presentation';
 
 const sourceClasses: Record<MetricSource, string> = {
-  api: 'text-[#0e7490]',
-  formula: 'text-[#b45309]',
-  input: 'text-[#64748b]',
-  unavailable: 'text-[#dc2626]',
-  constant: 'text-[#94a3b8]',
+  api: 'text-brand-primary-pressed',
+  formula: 'text-violet-700',
+  input: 'text-amber-700',
+  constant: 'text-slate-600',
+  unavailable: 'text-text-placeholder',
 };
 
 function StatusLabel({ value }: { value: string }) {
   const normalizedValue = value.toLocaleLowerCase('id-ID');
+
+  if (value === '—') {
+    return <span className="font-mono text-xs font-medium text-text-placeholder">—</span>;
+  }
+
   const style = normalizedValue.includes('normal')
-    ? 'bg-emerald-500'
+    ? 'bg-zone-hilir'
     : normalizedValue.includes('basah')
-      ? 'bg-cyan-500'
+      ? 'bg-zone-hulu'
       : normalizedValue.includes('kering')
-        ? 'bg-amber-500'
+        ? 'bg-zone-dam'
         : 'bg-slate-300';
 
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium text-slate-600">
-      <span className={`size-1.5 rounded-full ${style}`} />
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-text-secondary">
+      <span className={`size-[7px] rounded-full ${style}`} />
       {value}
     </span>
   );
@@ -68,13 +74,13 @@ export function MonthlyTable({
   ];
 
   return (
-    <div className="overflow-x-auto border-y border-[#e2e8f0]">
+    <div className="overflow-x-auto rounded-md border border-border-subtle bg-white">
       <table className="w-full min-w-[1120px] table-fixed border-collapse">
         <thead>
-          <tr className="bg-[#f8fafc]">
+          <tr className="bg-surface-overlay">
             <th
               scope="col"
-              className="sticky left-0 z-20 w-[136px] bg-[#f8fafc] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748b]"
+              className="table-head-cell sticky left-0 z-20 w-[136px] border-r border-border-subtle bg-surface-overlay px-3.5 py-2.5 text-left"
             >
               Status
             </th>
@@ -86,8 +92,8 @@ export function MonthlyTable({
                   key={month}
                   scope="col"
                   title={isCurrentMonth ? `${month} · bulan berjalan` : month}
-                  className={`border-l border-[#e2e8f0] px-2 py-3 text-center text-xs font-semibold ${
-                    isCurrentMonth ? 'bg-cyan-50 text-[#0e7490]' : 'text-[#64748b]'
+                  className={`table-head-cell px-2 py-2.5 text-center ${
+                    isCurrentMonth ? 'bg-brand-tint text-brand-primary-pressed' : ''
                   }`}
                 >
                   {month.slice(0, 3)}
@@ -98,10 +104,10 @@ export function MonthlyTable({
         </thead>
         <tbody>
           {statusRows.map((row) => (
-            <tr key={row.label} className="border-t border-[#e2e8f0]">
+            <tr key={row.label} className="border-t border-surface-overlay first:border-border-subtle">
               <th
                 scope="row"
-                className="sticky left-0 z-10 bg-white px-4 py-3 text-left text-xs font-semibold text-[#475569]"
+                className="sticky left-0 z-10 border-r border-border-subtle bg-white px-3.5 py-2.5 text-left text-xs font-semibold text-text-primary"
               >
                 {row.label}
               </th>
@@ -111,8 +117,8 @@ export function MonthlyTable({
                 return (
                   <td
                     key={entry.month}
-                    className={`border-l border-[#e2e8f0] px-2 py-3 text-center ${
-                      isCurrentMonth ? 'bg-[#f0fdff]' : 'bg-white'
+                    className={`px-2 py-2.5 text-center ${
+                      isCurrentMonth ? 'bg-brand-tint' : 'bg-white'
                     }`}
                   >
                     <StatusLabel value={row.getValue(entry)} />
@@ -143,40 +149,46 @@ export function ForecastMapCard({
   onUpload?: () => void;
 }) {
   const canUpload = Boolean(onUpload) && !isLoading && !imageUrl;
+  const meta = isLoading
+    ? 'Memuat…'
+    : imageUrl
+      ? subtitle
+      : isError
+        ? 'Gagal dimuat'
+        : 'Belum tersedia';
+
   const content = (
     <>
-      <div className="border-b border-[#e2e8f0] px-4 py-3">
-        <h3 className="text-sm font-semibold text-[#0f172a]">{title}</h3>
-        <p className="mt-0.5 text-xs text-[#94a3b8]">{subtitle}</p>
-      </div>
-      <div className="flex h-[220px] items-center justify-center bg-[#f8fafc]">
+      <div
+        className={`flex h-[190px] items-center justify-center ${canUpload ? 'bg-surface-base' : 'bg-surface-overlay'}`}
+      >
         {isLoading ? (
           <Skeleton className="size-full rounded-none" />
         ) : imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={title}
-            className="size-full object-contain"
-          />
+          <img src={imageUrl} alt={title} className="size-full object-contain" />
+        ) : canUpload ? (
+          <div className="flex flex-col items-center gap-2 px-4 text-center">
+            <Upload size={20} className="text-slate-400" />
+            <span className="text-xs font-semibold text-text-secondary">Unggah gambar</span>
+            <span className="text-[10.5px] text-text-muted">{subtitle}</span>
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-2 px-4 text-center">
-            <ImageOff size={24} className={isError ? 'text-red-400' : 'text-slate-300'} />
-            <p className={`text-xs font-medium ${isError ? 'text-red-500' : 'text-slate-400'}`}>
+            <ImageOff size={20} className={isError ? 'text-red-400' : 'text-slate-300'} />
+            <span className={`text-[10.5px] ${isError ? 'text-status-danger-strong' : 'text-text-muted'}`}>
               {isError ? 'Gambar gagal dimuat' : 'Gambar belum tersedia'}
-            </p>
-            {canUpload && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-700">
-                <Upload size={13} />
-                Klik untuk unggah
-              </span>
-            )}
+            </span>
           </div>
         )}
       </div>
-      <div className="flex items-center justify-between border-t border-[#e2e8f0] px-4 py-2.5 text-[11px]">
-        <span className="text-[#64748b]">Sumber gambar BMKG</span>
-        <span className="font-medium text-[#0e7490]">
-          {imageUrl ? 'Tersedia' : canUpload ? 'Siap diunggah' : 'Belum tersedia'}
+      <div
+        className={`flex items-center justify-between gap-2 border-t px-3 py-2 ${canUpload ? 'border-dashed border-border-strong' : 'border-border-subtle'}`}
+      >
+        <span className="truncate text-xs font-medium text-text-primary">{title}</span>
+        <span
+          className={`shrink-0 text-[10.5px] ${imageUrl ? 'text-text-muted' : 'text-text-placeholder'}`}
+        >
+          {meta}
         </span>
       </div>
     </>
@@ -188,7 +200,7 @@ export function ForecastMapCard({
         type="button"
         onClick={onUpload}
         aria-label={`Unggah ${title}`}
-        className="overflow-hidden border border-[#e2e8f0] bg-white text-left transition-colors hover:border-cyan-300 hover:bg-cyan-50/20 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+        className="cursor-pointer overflow-hidden rounded-md border border-dashed border-border-strong bg-white text-left transition-colors hover:border-brand-primary-strong focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/30"
       >
         {content}
       </button>
@@ -196,35 +208,47 @@ export function ForecastMapCard({
   }
 
   return (
-    <article className="overflow-hidden border border-[#e2e8f0] bg-white">
+    <article className="overflow-hidden rounded-md border border-border-subtle bg-white">
       {content}
     </article>
   );
 }
 
+/**
+ * Daftar parameter bulanan: label + penanda sumber di kiri, nilai + satuan di
+ * kanan, dipisah garis. Tanpa kartu pembungkus dan tanpa header kolom.
+ */
 export function ForecastDetail({ rows }: { rows: MetricRow[] }) {
   return (
-    <article className="overflow-hidden border border-[#e2e8f0] bg-white">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-[#f8fafc] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#64748b]">
-        <span>Parameter</span>
-        <span>Nilai</span>
-      </div>
-      <div className="divide-y divide-[#f1f5f9] px-4">
-        {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3">
-            <div className="min-w-0">
-              <p className="text-xs font-medium leading-5 text-[#475569]">{row.label}</p>
-              <p className={`mt-0.5 text-[11px] font-medium ${sourceClasses[row.sourceType]}`}>
-                {row.source}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-sm font-semibold text-[#0f172a]">{row.value}</span>
-              {row.unit && <span className="ml-1 text-[10px] text-[#94a3b8]">{row.unit}</span>}
-            </div>
+    <div className="border-t border-border-subtle">
+      {rows.map((row) => {
+        const isUnavailable = row.sourceType === 'unavailable';
+
+        return (
+          <div
+            key={row.label}
+            className="flex items-center justify-between gap-3 border-b border-surface-overlay py-[9px] last:border-b-0"
+          >
+            <span className="flex min-w-0 items-center gap-[7px]">
+              <span
+                className={`truncate text-[12.5px] ${isUnavailable ? 'text-text-placeholder' : 'text-text-secondary'}`}
+              >
+                {row.label}
+              </span>
+              <span title={row.source} className={`flex shrink-0 ${sourceClasses[row.sourceType]}`}>
+                <SourceMarker type={row.sourceType} />
+                <span className="sr-only">{row.source}</span>
+              </span>
+            </span>
+            <span
+              className={`metric-value shrink-0 text-[13px] ${isUnavailable ? 'text-text-placeholder' : ''}`}
+            >
+              {row.value}
+              {row.unit && <span className="metric-unit ml-1">{row.unit}</span>}
+            </span>
           </div>
-        ))}
-      </div>
-    </article>
+        );
+      })}
+    </div>
   );
 }

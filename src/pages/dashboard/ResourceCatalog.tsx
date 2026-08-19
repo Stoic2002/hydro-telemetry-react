@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
+import PageHeader from '../../components/ui/PageHeader';
 import { CatalogTabs } from './resource-catalog/CatalogTable';
 import {
   PlantsCatalog,
@@ -35,16 +36,11 @@ export default function ResourceCatalog() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div className="flex flex-col gap-1">
-          <h1 className="page-title">Katalog Monitoring</h1>
-          <p className="page-description">
-            Lihat struktur Wilayah Sungai, PLTA, serta tag dan parameter yang tersedia di server.
-          </p>
-        </div>
-
-        <CatalogTabs activeView={activeView} onChange={setView} />
-      </div>
+      <PageHeader
+        title="Katalog Monitoring"
+        description="Lihat struktur Wilayah Sungai, PLTA, serta tag dan parameter yang tersedia di server."
+        actions={<CatalogTabs activeView={activeView} onChange={setView} />}
+      />
 
       <div
         id={`catalog-panel-${activeView}`}

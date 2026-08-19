@@ -3,6 +3,48 @@ import { plantMatchesIdentity } from './presentation';
 
 export type HydrologyZone = 'upstream' | 'dam' | 'downstream';
 
+export const HYDROLOGY_ZONES: HydrologyZone[] = ['upstream', 'dam', 'downstream'];
+
+export interface HydrologyZonePresentation {
+  order: number;
+  title: string;
+  markerClassName: string;
+  badgeClassName: string;
+  columnClassName: string;
+  dividerClassName: string;
+  borderClassName: string;
+}
+
+export const HYDROLOGY_ZONE_PRESENTATION: Record<HydrologyZone, HydrologyZonePresentation> = {
+  upstream: {
+    order: 1,
+    title: 'Hulu',
+    markerClassName: 'bg-brand-primary text-cyan-950',
+    badgeClassName: 'bg-cyan-100 text-cyan-700',
+    columnClassName: '',
+    dividerClassName: 'divide-surface-overlay',
+    borderClassName: 'border-surface-overlay',
+  },
+  dam: {
+    order: 2,
+    title: 'Bendungan',
+    markerClassName: 'bg-amber-500 text-white',
+    badgeClassName: 'bg-amber-500 text-white',
+    columnClassName: 'bg-amber-50',
+    dividerClassName: 'divide-amber-200',
+    borderClassName: 'border-amber-200',
+  },
+  downstream: {
+    order: 3,
+    title: 'Hilir',
+    markerClassName: 'bg-status-success text-emerald-950',
+    badgeClassName: 'bg-emerald-100 text-emerald-700',
+    columnClassName: '',
+    dividerClassName: 'divide-surface-overlay',
+    borderClassName: 'border-surface-overlay',
+  },
+};
+
 export interface DamImageryExtent {
   west: number;
   south: number;

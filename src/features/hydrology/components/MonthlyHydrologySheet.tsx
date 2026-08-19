@@ -161,7 +161,7 @@ export default function MonthlyHydrologySheet({
         onSubmit={form.handleSubmit(submitHydrology)}
         className="flex flex-col gap-6"
       >
-        <div className="border-b border-slate-100 pb-5">
+        <div className="border-b border-surface-overlay pb-5">
           <p className="text-xs font-medium text-cyan-700">Periode dan PLTA</p>
           <p className="mt-1 text-sm font-semibold text-slate-800">
             {monthLabel} {year} · PLTA {plantName}
@@ -197,7 +197,7 @@ export default function MonthlyHydrologySheet({
           </label>
         </section>
 
-        <section className="flex flex-col gap-4 border-t border-slate-100 pt-5">
+        <section className="flex flex-col gap-4 border-t border-surface-overlay pt-5">
           <div>
             <h3 className="text-sm font-semibold text-slate-800">Energi produksi</h3>
             <p className="mt-1 text-xs text-slate-500">

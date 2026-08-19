@@ -1,16 +1,20 @@
 import { useRef, useState, type DragEvent } from 'react';
 import {
   AlertCircle,
+  AlertTriangle,
+  Check,
   CheckCircle2,
   Download,
   FileSpreadsheet,
-  Info,
   LoaderCircle,
   Trash2,
   UploadCloud,
 } from 'lucide-react';
+import Badge from '../../components/atoms/Badge';
 import Select from '../../components/atoms/Select';
 import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import PageHeader from '../../components/ui/PageHeader';
+import EmptyState from '../../components/ui/EmptyState';
 import { useActivePLTA } from '../../features/plta/api/queries';
 import { useUploadElevationExcelMutation } from '../../features/uploads';
 import type { UploadHistoryItem } from '../../features/uploads/model';
@@ -91,19 +95,11 @@ function UploadCard({
   };
 
   return (
-    <section className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-brand-primary-strong">
-          <FileSpreadsheet size={18} />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold text-slate-900">Elevasi & Volume Waduk</h2>
-          <p className="mt-0.5 text-xs text-slate-500">Unggah satu file Excel untuk tahun data yang dipilih.</p>
-        </div>
-      </div>
+    <section className="w-full">
+      <h2 className="section-title">Elevasi &amp; Volume Waduk</h2>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="p-5 sm:p-6">
+      <div className="mt-3.5 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
+        <div>
           {!selection ? (
             <div
               role="button"
@@ -116,10 +112,10 @@ function UploadCard({
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click();
               }}
-              className={`flex min-h-60 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-5 py-10 text-center outline-none transition-colors focus:ring-2 focus:ring-brand-primary-strong/30 ${
+              className={`flex min-h-[190px] cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed px-5 py-8 text-center outline-none transition-colors focus:ring-2 focus:ring-brand-primary-strong/30 ${
                 isDragging
-                  ? 'border-brand-primary-strong bg-cyan-50/70'
-                  : 'border-slate-300 bg-slate-50/60 hover:border-cyan-400 hover:bg-cyan-50/30'
+                  ? 'border-brand-primary-strong bg-brand-tint'
+                  : 'border-border-strong bg-surface-base hover:border-brand-primary-strong'
               }`}
             >
               <input
@@ -132,61 +128,72 @@ function UploadCard({
                   if (file) onSelect(file);
                 }}
               />
-              <span className="flex size-12 items-center justify-center rounded-full bg-white text-brand-primary-strong ring-1 ring-slate-200">
-                <UploadCloud size={23} />
-              </span>
-              <p className="mt-4 text-sm font-semibold text-slate-700">Tarik file Excel ke area ini</p>
-              <p className="mt-1 text-xs text-slate-400">atau klik untuk memilih file dari perangkat</p>
-              <span className="mt-4 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200">
+              <UploadCloud size={26} className="text-slate-400" />
+              <p className="mt-2 text-[13px] font-semibold text-text-secondary">Tarik file Excel ke area ini</p>
+              <p className="mt-1 text-xs text-text-muted">atau klik untuk memilih file</p>
+              <span className="mt-2.5 rounded-full border border-border-subtle bg-white px-2.5 py-[3px] font-mono text-[10.5px] font-medium text-text-muted">
                 .xlsx · maksimum 5 MB
               </span>
             </div>
           ) : (
-            <div className={`flex min-h-60 flex-col justify-between rounded-xl border p-5 ${
-              selection.error ? 'border-red-200 bg-red-50/40' : 'border-emerald-200 bg-emerald-50/30'
-            }`}>
+            <div className="flex min-h-[190px] flex-col justify-between">
               <div>
-                <div className="flex items-start gap-3">
-                  {selection.error ? (
-                    <AlertCircle className="mt-0.5 shrink-0 text-red-500" size={24} />
-                  ) : (
-                    <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={24} />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-900">{selection.file.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {(selection.file.size / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB · Tahun {year}
+                <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-text-muted">Setelah file dipilih</p>
+                <div className={`mt-2 rounded-md border p-3.5 ${
+                  selection.error ? 'border-red-200 bg-red-50/40' : 'border-emerald-200 bg-emerald-50/30'
+                }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {selection.error ? (
+                      <AlertCircle className="mt-0.5 shrink-0 text-red-500" size={20} />
+                    ) : (
+                      <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={20} />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-semibold text-text-primary">{selection.file.name}</p>
+                      <p className="mt-0.5 text-[11px] text-text-muted">
+                        {(selection.file.size / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} KB · Tahun {year}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      disabled={isUploading}
+                      title="Hapus file"
+                      className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onUpload}
+                  disabled={Boolean(selection.error) || !Number.isInteger(year) || isUploading}
+                  className="mt-2.5 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand-primary-strong text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {isUploading && <LoaderCircle size={16} className="animate-spin" />}
+                  {isUploading ? 'Sedang mengunggah...' : 'Unggah ke Server'}
+                </button>
+
+                {selection.error && (
+                  <div className="mt-3 flex items-start gap-2">
+                    <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red-600" />
+                    <p className="text-[11.5px] leading-relaxed text-red-700">
+                      {selection.error}{' '}
+                      <button type="button" onClick={clearSelection} className="cursor-pointer font-semibold text-brand-primary-strong hover:text-cyan-800">
+                        Pilih file lain
+                      </button>
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={clearSelection}
-                    disabled={isUploading}
-                    title="Hapus file"
-                    className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                <p className={`mt-5 text-xs leading-5 ${selection.error ? 'text-red-700' : 'text-emerald-700'}`}>
-                  {selection.error ?? 'File siap dikirim utuh ke backend tanpa diparsing di browser.'}
-                </p>
+                )}
               </div>
-
-              <button
-                type="button"
-                onClick={onUpload}
-                disabled={Boolean(selection.error) || !Number.isInteger(year) || isUploading}
-                className="mt-6 inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-primary-strong px-4 text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {isUploading && <LoaderCircle size={16} className="animate-spin" />}
-                {isUploading ? 'Sedang mengunggah...' : 'Unggah ke Server'}
-              </button>
             </div>
           )}
         </div>
 
-        <aside className="flex flex-col gap-5 border-t border-slate-200 bg-slate-50/60 p-5 lg:border-l lg:border-t-0">
+        <aside className="flex flex-col gap-3.5 rounded-md bg-surface-overlay p-4">
           <Select
             label="Tahun data"
             value={year}
@@ -196,31 +203,28 @@ function UploadCard({
             controlClassName="bg-white"
           />
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              checked={publish}
-              disabled={isUploading}
-              onChange={(event) => onPublishChange(event.target.checked)}
-              className="mt-0.5 size-4 shrink-0 accent-cyan-700"
-            />
-            <span>
-              <span className="block font-semibold text-slate-700">Publikasikan kurva</span>
-              <span className="mt-1 block leading-5 text-slate-400">Aktifkan agar kurva langsung digunakan setelah validasi server.</span>
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <span className="relative mt-0.5 flex size-4 shrink-0 items-center justify-center">
+              <input
+                type="checkbox"
+                checked={publish}
+                disabled={isUploading}
+                onChange={(event) => onPublishChange(event.target.checked)}
+                className="peer absolute inset-0 size-4 shrink-0 cursor-pointer appearance-none rounded-[4px] border border-slate-300 bg-white checked:border-brand-primary-strong checked:bg-brand-primary-strong disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              <Check size={11} strokeWidth={3} className="pointer-events-none relative text-white opacity-0 peer-checked:opacity-100" />
             </span>
+            <span className="text-[12.5px] leading-[1.4] text-text-secondary">Publikasikan kurva elevasi–volume setelah diproses</span>
           </label>
 
-          <div className="flex gap-2 border-y border-slate-200 py-3">
-            <Info size={14} className="mt-0.5 shrink-0 text-slate-500" />
-            <p className="text-xs leading-5 text-slate-500">
-              Kolom <strong>Elevasi</strong> dan <strong>Volume</strong> wajib. Kolom <strong>Area</strong> bersifat opsional.
-            </p>
-          </div>
+          <p className="border-t border-border-subtle pt-2.5 text-[11px] leading-relaxed text-text-muted">
+            Kolom wajib: <strong className="font-semibold text-text-secondary">Elevasi</strong>, <strong className="font-semibold text-text-secondary">Volume</strong>. Kolom Area bersifat opsional.
+          </p>
 
           <a
             href={TEMPLATE_URL}
             download="Template_Upload_PLTA_Standar.xlsx"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-cyan-400 hover:text-brand-primary-strong"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-sm border border-border-subtle bg-white text-xs font-semibold text-text-secondary transition-colors hover:bg-slate-50"
           >
             <Download size={14} />
             Unduh Template
@@ -275,13 +279,11 @@ export default function InputGHW() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
-      <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-        <div>
-          <h1 className="page-title">Input GHW</h1>
-          <p className="page-description">Unggah data elevasi dan volume PLTA {plta.shortName}</p>
-        </div>
-        <PlantSwitcher page="input-ghw" />
-      </header>
+      <PageHeader
+        title="Input GHW"
+        description={`Unggah data elevasi dan volume waduk untuk memperbarui kurva GHW PLTA ${plta.shortName}`}
+        actions={<PlantSwitcher page="input-ghw" />}
+      />
 
       <UploadCard
         selection={selection}
@@ -295,52 +297,52 @@ export default function InputGHW() {
         onUpload={() => void uploadElevation()}
       />
 
-      <section className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">Riwayat sesi</h2>
-            <p className="mt-0.5 text-xs text-slate-500">File yang sudah diterima dan divalidasi server.</p>
-          </div>
-          <span className="text-xs text-slate-400">Maks. 5 data</span>
-        </div>
-
-        {uploadHistory.length === 0 ? (
-          <div className="flex min-h-36 flex-col items-center justify-center px-6 text-center">
-            <FileSpreadsheet size={28} className="text-slate-300" />
-            <p className="mt-3 text-sm font-semibold text-slate-600">Belum ada upload</p>
-            <p className="mt-1 text-xs text-slate-400">Riwayat akan muncul setelah server menerima data.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse">
-              <thead>
-                <tr className="h-11 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
-                  <th className="px-5">Nama File</th>
-                  <th className="px-5">Jenis Data</th>
-                  <th className="px-5">Tahun</th>
-                  <th className="px-5">Waktu</th>
-                  <th className="px-5 text-right">Baris</th>
-                  <th className="px-5 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {uploadHistory.map((item) => (
-                  <tr key={`${item.filename}-${item.uploadedAt}`} className="border-t border-slate-100 text-sm text-slate-600">
-                    <td className="px-5 py-3.5 font-medium text-slate-800">{item.filename}</td>
-                    <td className="px-5 py-3.5">{item.dataType}</td>
-                    <td className="px-5 py-3.5">{item.period}</td>
-                    <td className="px-5 py-3.5 text-xs">{item.uploadedAt}</td>
-                    <td className="px-5 py-3.5 text-right font-mono">{item.rows.toLocaleString('id-ID')}</td>
-                    <td className="px-5 py-3.5 text-right">
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Berhasil</span>
-                    </td>
+      <div>
+        <h2 className="card-title">Riwayat sesi</h2>
+        <section className="mt-2.5 w-full overflow-hidden rounded-md border border-border-subtle bg-white">
+          {uploadHistory.length === 0 ? (
+            <EmptyState
+              icon={<FileSpreadsheet size={19} />}
+              title="Belum ada unggahan"
+              description="Riwayat akan muncul setelah server menerima data."
+              className="py-8"
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] border-collapse">
+                <thead>
+                  <tr className="h-9 border-b border-border-subtle bg-surface-overlay text-left">
+                    <th className="table-head-cell px-4">Nama File</th>
+                    <th className="table-head-cell px-4">Jenis Data</th>
+                    <th className="table-head-cell px-4">Tahun</th>
+                    <th className="table-head-cell px-4">Waktu</th>
+                    <th className="table-head-cell px-4 text-right">Baris</th>
+                    <th className="table-head-cell px-4">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {uploadHistory.map((item) => (
+                    <tr key={`${item.filename}-${item.uploadedAt}`} className="border-t border-surface-overlay text-sm text-text-secondary">
+                      <td className="px-4 py-3 font-mono text-[12.5px] font-medium text-text-primary">{item.filename}</td>
+                      <td className="px-4 py-3 text-[12.5px]">{item.dataType}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{item.period}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{item.uploadedAt}</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs tabular-nums">{item.rows.toLocaleString('id-ID')}</td>
+                      <td className="px-4 py-3">
+                        <Badge tone="green">Berhasil</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <p className="text-[11.5px] leading-relaxed text-text-muted">
+        Riwayat sesi dibatasi 5 baris terakhir, tanpa paginasi. File Excel tidak diparsing di browser — validasi kolom dan jumlah baris baru terlihat setelah server membalas.
+      </p>
     </div>
   );
 }

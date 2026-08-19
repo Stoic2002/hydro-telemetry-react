@@ -225,9 +225,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
   }, [isOpen]);
 
   return (
-    <div ref={rootRef} className={`group/select flex min-w-0 w-full flex-col gap-2 ${className}`}>
+    <div ref={rootRef} className={`group/select flex min-w-0 w-full flex-col gap-1.5 ${className}`}>
       {label && (
-        <label htmlFor={triggerId} className="text-xs font-semibold text-slate-500">
+        <label htmlFor={triggerId} className="field-label">
           {label}
         </label>
       )}
@@ -263,12 +263,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
           disabled={disabled}
           onClick={() => (isOpen ? closeDropdown() : openDropdown())}
           onKeyDown={handleTriggerKeyDown}
-          className={`peer flex min-w-0 w-full cursor-pointer items-center border bg-white font-semibold text-slate-800 outline-none transition-[border-color,box-shadow,background-color] duration-200 hover:border-slate-300 focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 ${
-            isCompact ? 'h-9 rounded-lg pr-10 text-xs' : 'h-11 rounded-xl pr-12 text-sm'
+          className={`peer flex min-w-0 w-full cursor-pointer items-center border bg-white font-medium text-slate-900 outline-none transition-[border-color,box-shadow,background-color] duration-150 hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-slate-50 disabled:text-slate-400 ${
+            isCompact ? 'h-9 rounded-sm pr-8 text-xs' : 'h-11 rounded-md pr-10 text-[13px]'
           } ${leadingIcon ? (isCompact ? 'pl-9' : 'pl-10') : isCompact ? 'pl-3' : 'pl-3.5'} ${
             error
-              ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-              : 'border-slate-200'
+              ? 'border-status-danger focus:border-status-danger-strong focus:ring-status-danger/20'
+              : 'border-border-subtle'
           } ${controlClassName}`}
         >
           {leadingIcon && (
@@ -288,13 +288,13 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
 
         <span
           aria-hidden="true"
-          className={`pointer-events-none absolute right-2 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition-colors peer-focus:border-cyan-200 peer-focus:bg-cyan-50 peer-focus:text-brand-primary-strong peer-disabled:bg-slate-100 ${
-            isCompact ? 'size-6' : 'size-7'
+          className={`pointer-events-none absolute flex items-center justify-center text-slate-500 peer-disabled:text-slate-300 ${
+            isCompact ? 'right-3' : 'right-3.5'
           }`}
         >
           <ChevronDown
             className={`${isCompact ? 'size-3.5' : 'size-4'} transition-transform ${isOpen ? 'rotate-180' : ''}`}
-            strokeWidth={2.2}
+            strokeWidth={2}
           />
         </span>
       </div>
@@ -307,7 +307,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
           aria-labelledby={label ? triggerId : undefined}
           tabIndex={-1}
           onKeyDown={handleListboxKeyDown}
-          className="fixed z-[200] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)] outline-none"
+          className="fixed z-[200] overflow-y-auto overflow-x-hidden rounded-lg border border-border-subtle bg-white shadow-panel outline-none"
           style={dropdownPosition}
         >
           {options.map((option, index) => {
@@ -324,9 +324,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
                 disabled={option.disabled}
                 onMouseEnter={() => setHighlightedIndex(index)}
                 onClick={() => selectOption(option)}
-                className={`flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:text-slate-300 ${
+                className={`flex min-h-10 w-full cursor-pointer items-center gap-2 px-3.5 py-2 text-left text-[13px] transition-colors disabled:cursor-not-allowed disabled:text-slate-300 ${
                   isSelected
-                    ? 'bg-cyan-50 font-semibold text-brand-primary-strong'
+                    ? 'bg-brand-tint font-semibold text-brand-primary-pressed'
                     : isHighlighted
                       ? 'bg-slate-50 text-slate-900'
                       : 'text-slate-700 hover:bg-slate-50'
@@ -344,7 +344,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
       {(error || helperText) && (
         <span
           id={messageId}
-          className={`text-xs font-medium ${error ? 'text-red-500' : 'text-slate-400'}`}
+          className={`text-[11.5px] font-medium ${error ? 'text-status-danger-strong' : 'text-slate-400'}`}
         >
           {error || helperText}
         </span>
