@@ -1,6 +1,28 @@
 import { ApiError } from './api-error';
 import { getAccessToken, refreshAuthSession } from './auth-session';
 import { buildApiUrl, type QueryValue } from './url';
+import { reportError } from '../../shared/lib/report-error';
+
+/**
+ * Yang dilaporkan hanya kegagalan sisi server dan backend tak terjangkau.
+ * 4xx adalah alur normal aplikasi (validasi, sesi habis, izin) dan sudah punya
+ * penanganan sendiri di layar.
+ */
+function isReportableFailure(status: number): boolean {
+  return status === 0 || status >= 500;
+}
+
+function createNetworkError(url: string, method: string, cause: unknown): ApiError {
+  const networkError = new ApiError('Tidak dapat terhubung ke server', {
+    status: 0,
+    statusText: 'Network Error',
+    url,
+    cause,
+  });
+
+  reportError(networkError, { scope: 'api', status: 0, method, url });
+  return networkError;
+}
 
 interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   body?: BodyInit | null;
@@ -112,12 +134,7 @@ export async function apiRequest<TResponse>(
       throw error;
     }
 
-    throw new ApiError('Tidak dapat terhubung ke server', {
-      status: 0,
-      statusText: 'Network Error',
-      url,
-      cause: error,
-    });
+    throw createNetworkError(url, requestInit.method ?? 'GET', error);
   }
 
   if (auth && retryOnUnauthorized && response.status === 401) {
@@ -134,12 +151,7 @@ export async function apiRequest<TResponse>(
           headers,
         });
       } catch (error) {
-        throw new ApiError('Tidak dapat terhubung ke server', {
-          status: 0,
-          statusText: 'Network Error',
-          url,
-          cause: error,
-        });
+        throw createNetworkError(url, requestInit.method ?? 'GET', error);
       }
     }
   }
@@ -152,13 +164,24 @@ export async function apiRequest<TResponse>(
       ?? getPayloadField(payload, 'errors')
       ?? getPayloadField(payload, 'detail');
 
-    throw new ApiError(getErrorMessage(payload, response), {
+    const apiError = new ApiError(getErrorMessage(payload, response), {
       status: response.status,
       statusText: response.statusText,
       code: typeof code === 'string' ? code : undefined,
       details,
       url,
     });
+
+    if (isReportableFailure(apiError.status)) {
+      reportError(apiError, {
+        scope: 'api',
+        status: apiError.status,
+        method: requestInit.method ?? 'GET',
+        url,
+      });
+    }
+
+    throw apiError;
   }
 
   return payload as TResponse;

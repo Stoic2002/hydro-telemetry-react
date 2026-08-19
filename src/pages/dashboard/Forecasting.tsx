@@ -26,6 +26,11 @@ import {
 } from '../../features/forecasting';
 import { useTrendQuery } from '../../features/trends';
 import { formatNumber } from '../../shared/utils/number';
+import {
+  formatDayMonthWIB,
+  formatDayMonthYearTimeWIB,
+  formatTimeWIB,
+} from '../../shared/lib/date';
 
 interface ForecastChartDatum {
   time: string;
@@ -64,24 +69,11 @@ function normalizeUnit(unit: string | null | undefined): string {
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Jakarta',
-  }).format(date);
+  return formatDayMonthYearTimeWIB(value);
 }
 
 function formatAxisTime(value: string, horizon: ForecastHorizon): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('id-ID', horizon === 24
-    ? { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }
-    : { day: '2-digit', month: 'short', timeZone: 'Asia/Jakarta' }).format(date);
+  return horizon === 24 ? formatTimeWIB(value) : formatDayMonthWIB(value);
 }
 
 function errorMessage(error: unknown): string {
@@ -94,19 +86,19 @@ function ForecastTooltip({ active, payload, unit }: ForecastTooltipProps) {
   if (!active || !point) return null;
 
   const values = [
-    { label: 'Aktual', value: point.actual, className: 'text-slate-300' },
+    { label: 'Aktual', value: point.actual, className: 'text-disabled' },
     { label: 'Prediksi P50', value: point.forecast, className: 'text-cyan-300' },
-    { label: 'P10', value: point.p10, className: 'text-slate-400' },
-    { label: 'P90', value: point.p90, className: 'text-slate-400' },
+    { label: 'P10', value: point.p10, className: 'text-text-muted' },
+    { label: 'P90', value: point.p90, className: 'text-text-on-inverse-muted' },
   ].filter((item) => item.value !== undefined);
 
   return (
-    <div className="min-w-48 rounded-md border border-slate-700 bg-slate-900/95 p-3 text-white shadow-xl">
-      <p className="text-[11px] font-medium text-slate-300">{formatDateTime(point.time)}</p>
+    <div className="min-w-48 rounded-md border border-border-inverse bg-surface-inverse/95 p-3 text-white shadow-xl">
+      <p className="text-[11px] font-medium text-text-on-inverse">{formatDateTime(point.time)}</p>
       <div className="mt-2 space-y-1.5">
         {values.map((item) => (
           <div key={item.label} className="flex items-center justify-between gap-5 text-xs">
-            <span className="text-slate-400">{item.label}</span>
+            <span className="text-text-on-inverse-muted">{item.label}</span>
             <span className={`font-semibold ${item.className}`}>
               {formatNumber(item.value ?? 0, 2)} {unit}
             </span>
@@ -183,7 +175,7 @@ export default function Forecasting() {
         title="Forecasting"
         description={`Prediksi ML terbaru untuk PLTA ${FORECASTING_PLTA_NAME}`}
         actions={(
-          <span className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border-subtle bg-white px-3 text-[13px] font-medium text-text-primary">
+          <span className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border-subtle bg-surface-raised px-3 text-[13px] font-medium text-text-primary">
             <Calendar size={15} className="shrink-0 text-text-muted" />
             PLTA {FORECASTING_PLTA_NAME}
           </span>
@@ -221,7 +213,7 @@ export default function Forecasting() {
           <span className="sr-only">Memuat Forecasting...</span>
         </div>
       ) : forecastQuery.isError ? (
-        <section className="rounded-md border border-border-subtle bg-white">
+        <section className="rounded-md border border-border-subtle bg-surface-raised">
           <ErrorState
             title="Prediksi belum bisa dimuat"
             description={errorMessage(forecastQuery.error)}
@@ -246,7 +238,7 @@ export default function Forecasting() {
             </Banner>
           )}
 
-          <div className="grid grid-cols-1 divide-y divide-border-subtle overflow-hidden rounded-md border border-border-subtle bg-white sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+          <div className="grid grid-cols-1 divide-y divide-border-subtle overflow-hidden rounded-md border border-border-subtle bg-surface-raised sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
             {[
               {
                 label: 'Prediksi awal',
@@ -280,14 +272,14 @@ export default function Forecasting() {
             ))}
           </div>
 
-          <section className="overflow-hidden rounded-md border border-border-subtle bg-white">
+          <section className="overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
             <div className="flex flex-col justify-between gap-3 border-b border-surface-overlay px-5 py-4 sm:flex-row sm:items-start">
               <div>
                 <h2 className="section-title">{series?.label ?? PARAMETER_OPTIONS.find((item) => item.value === parameter)?.label}</h2>
-                <p className="mt-1 text-xs text-slate-500">Aktual historis dan prediksi P50 dari model terbaru.</p>
+                <p className="mt-1 text-xs text-text-muted">Aktual historis dan prediksi P50 dari model terbaru.</p>
               </div>
-              <div className="text-left text-[11px] text-slate-400 sm:text-right">
-                <p className="font-medium text-slate-500">{series?.modelName}</p>
+              <div className="text-left text-[11px] text-text-muted sm:text-right">
+                <p className="font-medium text-text-muted">{series?.modelName}</p>
                 <p className="mt-1">Dibuat {formatDateTime(series?.generatedAt)}</p>
               </div>
             </div>
@@ -295,13 +287,13 @@ export default function Forecasting() {
             <div className="px-2 pb-3 pt-5 sm:px-5">
               <ResponsiveContainer width="100%" height={360}>
                 <ComposedChart data={chartData} margin={{ top: 12, right: 18, bottom: 10, left: 0 }} accessibilityLayer>
-                  <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 6" />
+                  <CartesianGrid vertical={false} stroke="var(--color-chart-grid)" strokeDasharray="4 6" />
                   <XAxis
                     dataKey="time"
                     axisLine={false}
                     tickLine={false}
                     minTickGap={42}
-                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    tick={{ fill: 'var(--color-chart-axis)', fontSize: 11 }}
                     tickFormatter={(value: string) => formatAxisTime(value, horizon)}
                     dy={9}
                   />
@@ -310,18 +302,18 @@ export default function Forecasting() {
                     tickLine={false}
                     width={58}
                     domain={yDomain}
-                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    tick={{ fill: 'var(--color-chart-axis)', fontSize: 11 }}
                     tickFormatter={(value: number) => formatNumber(value, Math.abs(value) >= 100 ? 0 : 1)}
                   />
                   <Tooltip content={<ForecastTooltip unit={unit} />} />
                   <Area type="monotone" dataKey="bandBase" stackId="confidence" stroke="none" fill="transparent" isAnimationActive={false} />
                   <Area type="monotone" dataKey="bandRange" stackId="confidence" stroke="none" fill="#67e8f9" fillOpacity={0.28} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="actual" name="Aktual" stroke="#64748b" strokeWidth={2.25} dot={false} connectNulls={false} />
-                  <Line type="monotone" dataKey="forecast" name="Prediksi P50" stroke="#0891b2" strokeWidth={2.75} dot={false} activeDot={{ r: 5 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="actual" name="Aktual" stroke="var(--color-chart-axis)" strokeWidth={2.25} dot={false} connectNulls={false} />
+                  <Line type="monotone" dataKey="forecast" name="Prediksi P50" stroke="var(--color-chart-series-1)" strokeWidth={2.75} dot={false} activeDot={{ r: 5 }} connectNulls={false} />
                 </ComposedChart>
               </ResponsiveContainer>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-surface-overlay px-2 pt-3 text-[11px] text-slate-500">
-                <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-slate-500" />Aktual</span>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-surface-overlay px-2 pt-3 text-[11px] text-text-muted">
+                <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-text-muted" />Aktual</span>
                 <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 bg-cyan-700" />Prediksi P50</span>
                 {points.some((point) => point.valueP10 !== null && point.valueP90 !== null) && (
                   <span className="inline-flex items-center gap-1.5"><span className="size-3 bg-cyan-200/70" />Rentang P10–P90</span>
@@ -346,7 +338,7 @@ export default function Forecasting() {
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-md border border-border-subtle bg-white">
+            <section className="overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
               <div className="max-h-[222px] overflow-auto">
                 <table className="w-full min-w-[480px] border-collapse text-left">
                   <thead className="sticky top-0 z-10 bg-surface-overlay text-[10.5px] uppercase tracking-[0.06em] text-text-muted">
@@ -354,7 +346,7 @@ export default function Forecasting() {
                   </thead>
                   <tbody className="divide-y divide-surface-overlay">
                     {points.map((point) => (
-                      <tr key={point.time} className="font-mono text-xs text-text-secondary hover:bg-slate-50/70">
+                      <tr key={point.time} className="font-mono text-xs text-text-secondary hover:bg-surface-base/70">
                         <td className="px-3.5 py-2">{formatDateTime(point.time)}</td>
                         <td className="px-3.5 py-2 font-medium text-text-primary">{formatNumber(point.value, 2)}</td>
                         <td className="px-3.5 py-2 text-text-muted">{point.valueP10 === null ? '—' : formatNumber(point.valueP10, 2)}</td>

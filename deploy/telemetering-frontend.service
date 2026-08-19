@@ -1,0 +1,38 @@
+# Production — menyajikan dist/ pada port 4173.
+#
+# Pemasangan:
+#   sudo cp deploy/telemetering-frontend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now telemetering-frontend
+
+[Unit]
+Description=Hydro Telemetry React Frontend (production)
+# network-online lebih tepat daripada network.target: yang terakhir hanya
+# menandakan stack jaringan sudah dikonfigurasi, belum tentu bisa bind alamat.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=telemetring
+WorkingDirectory=/var/www/frontend-telemetering/hydro-telemetry-react
+
+# --strictPort wajib. Tanpa itu, bila 4173 sedang dipakai Vite diam-diam pindah
+# ke port berikutnya dan bertabrakan dengan service staging, sehingga operator
+# bisa membuka build yang salah tanpa satu pun pesan error.
+ExecStart=/home/telemetring/.bun/bin/bunx vite preview \
+  --outDir dist \
+  --host 0.0.0.0 \
+  --port 4173 \
+  --strictPort
+
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/frontend-telemetering/hydro-telemetry-react
+
+[Install]
+WantedBy=multi-user.target

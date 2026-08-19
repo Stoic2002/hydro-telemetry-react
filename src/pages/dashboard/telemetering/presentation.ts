@@ -3,13 +3,17 @@ import type {
   DashboardMetricGroup,
   MonthlyHydrology,
   NullableMetric,
-} from '../../../features/hydrology/model';
+} from '../../../features/hydrology';
 import type {
   MonitoringParameter,
   MonitoringParameterLatest,
 } from '../../../features/monitoring';
-import type { PlantTag } from '../../../features/plta/model';
-import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload/model';
+import type { PlantTag } from '../../../features/plta';
+import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload';
+import {
+  formatLongCalendarDate,
+  toISODateWIB,
+} from '../../../shared/lib/date';
 
 export const MONTHS = [
   'Januari',
@@ -65,11 +69,7 @@ export function formatHydrologyMetric(
 }
 
 export function formatHydrologyDate(value: string): string {
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(`${value}T00:00:00`));
+  return formatLongCalendarDate(value);
 }
 
 function monitoringTimestamp(reading: MonitoringParameterLatest): number {
@@ -215,12 +215,7 @@ export function dashboardMetricRows(
 }
 
 export function currentWibDate(date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Jakarta',
-  }).format(date);
+  return toISODateWIB(date);
 }
 
 export function buildUploadTarget(

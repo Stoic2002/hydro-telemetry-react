@@ -17,16 +17,12 @@ import Select from '../../components/atoms/Select';
 import Skeleton from '../../components/atoms/Skeleton';
 import ResourceTableSkeleton from '../../components/skeletons/ResourceTableSkeleton';
 import Sheet from '../../components/ui/Sheet';
-import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import { PlantSwitcher, useActivePLTA, usePLTATagsQuery } from '../../features/plta';
 import PageHeader from '../../components/ui/PageHeader';
 import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
 import RefetchBar from '../../components/ui/RefetchBar';
 import TablePagination from '../../components/ui/TablePagination';
-import {
-  useActivePLTA,
-  usePLTATagsQuery,
-} from '../../features/plta/api/queries';
 import {
   useCreateReportMutation,
   useDownloadReportMutation,
@@ -36,6 +32,11 @@ import {
   type ReportType,
 } from '../../features/reports';
 import { useNotificationStore } from '../../store/notification-store';
+import {
+  formatDayMonthYearTimeWIB,
+  formatDayMonthYearWIB,
+  getWIBDateParts,
+} from '../../shared/lib/date';
 
 const PAGE_LIMIT = 10;
 const MONTH_OPTIONS = [
@@ -67,16 +68,10 @@ const STATUS_META: Record<ReportStatus, { label: string; tone: BadgeTone }> = {
 };
 
 function getCurrentPeriod(): { month: number; year: number } {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    month: 'numeric',
-    year: 'numeric',
-    timeZone: 'Asia/Jakarta',
-  }).formatToParts(new Date());
+  const parts = getWIBDateParts(new Date());
+  if (!parts) return { month: 1, year: new Date().getFullYear() };
 
-  return {
-    month: Number(parts.find((part) => part.type === 'month')?.value ?? 1),
-    year: Number(parts.find((part) => part.type === 'year')?.value ?? new Date().getFullYear()),
-  };
+  return { month: parts.month, year: parts.year };
 }
 
 function monthBoundaries(year: number, month: number): { start: string; end: string } {
@@ -90,26 +85,6 @@ function monthBoundaries(year: number, month: number): { start: string; end: str
 
 function dateBoundary(date: string, endOfDay = false): string {
   return new Date(`${date}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}+07:00`).toISOString();
-}
-
-function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'Asia/Jakarta',
-  }).format(new Date(date));
-}
-
-function formatDateTime(date: string): string {
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Jakarta',
-  }).format(new Date(date));
 }
 
 function formatParameterLabel(parameter: string): string {
@@ -134,7 +109,7 @@ function ReportStatusBadge({ status }: { status: ReportStatus }) {
 }
 
 export default function Reports() {
-  const { addToast } = useNotificationStore();
+  const addToast = useNotificationStore((state) => state.addToast);
   const { plta, pltaId } = useActivePLTA();
   const currentPeriod = useMemo(() => getCurrentPeriod(), []);
   const [month, setMonth] = useState(currentPeriod.month);
@@ -274,19 +249,19 @@ export default function Reports() {
       <div className="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
         <form onSubmit={applySearch} className="flex min-w-0 items-center gap-2 sm:w-72">
           <div className="relative flex min-w-0 flex-1 items-center">
-            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-slate-400" />
+            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-text-muted" />
             <input
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               maxLength={100}
               placeholder="Cari nama laporan…"
-              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-white pr-3 pl-8.5 text-[12.5px] text-text-primary outline-none transition-[border-color,box-shadow] hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-slate-400"
+              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-surface-raised pr-3 pl-8.5 text-[12.5px] text-text-primary outline-none transition-[border-color,box-shadow] hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-text-placeholder"
             />
           </div>
           <button
             type="submit"
-            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-white px-3 text-[12.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-surface-raised px-3 text-[12.5px] font-semibold text-text-secondary transition-colors hover:bg-surface-base"
           >
             Cari
           </button>
@@ -294,7 +269,7 @@ export default function Reports() {
             <button
               type="button"
               onClick={clearSearch}
-              className="h-9 shrink-0 cursor-pointer rounded-sm px-2 text-[12.5px] font-semibold text-slate-500 transition-colors hover:bg-slate-100"
+              className="h-9 shrink-0 cursor-pointer rounded-sm px-2 text-[12.5px] font-semibold text-text-muted transition-colors hover:bg-surface-overlay"
             >
               Bersihkan
             </button>
@@ -305,7 +280,7 @@ export default function Reports() {
         )}
       </div>
 
-      <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-white">
+      <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
         <RefetchBar isRefetching={reportsQuery.isFetching && !reportsQuery.isLoading} />
 
         {reportsQuery.isError ? (
@@ -355,7 +330,7 @@ export default function Reports() {
               </thead>
               <tbody className="divide-y divide-surface-overlay">
                 {reports.map((report) => (
-                  <tr key={report.id} className="hover:bg-slate-50/70">
+                  <tr key={report.id} className="hover:bg-surface-base/70">
                     <td className="px-4 py-2.5">
                       <p className="text-[12.5px] font-medium text-text-primary">
                         {report.template === 'timeseries' ? 'Laporan Time Series' : 'Laporan Historis'}
@@ -364,15 +339,15 @@ export default function Reports() {
                         {REPORT_TYPES[report.type]} · {report.parameters?.map(formatParameterLabel).join(', ') || 'semua parameter'}
                       </p>
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-text-secondary">{formatDate(report.periodStart)} – {formatDate(report.periodEnd)}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-text-secondary">{formatDateTime(report.createdAt)}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-text-secondary">{formatDayMonthYearWIB(report.periodStart)} – {formatDayMonthYearWIB(report.periodEnd)}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-text-secondary">{formatDayMonthYearTimeWIB(report.createdAt)}</td>
                     <td className="px-4 py-2.5"><ReportStatusBadge status={report.status} /></td>
                     <td className="px-4 py-2.5 text-right">
                       <button
                         type="button"
                         disabled={report.status !== 'completed' || downloadMutation.isPending}
                         onClick={() => void downloadReport(report)}
-                        className="inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-sm border border-border-subtle bg-white px-2.5 text-[11.5px] font-semibold text-brand-primary-strong transition-colors hover:border-brand-tint-border hover:bg-brand-tint disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-surface-base disabled:text-slate-400"
+                        className="inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-sm border border-border-subtle bg-surface-raised px-2.5 text-[11.5px] font-semibold text-brand-primary-strong transition-colors hover:border-brand-tint-border hover:bg-brand-tint disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-surface-base disabled:text-text-muted"
                       >
                         <Download size={14} />
                         Unduh Excel
@@ -437,7 +412,7 @@ export default function Reports() {
 
           <fieldset className="flex flex-col gap-2">
             <legend className="field-label">
-              Parameter <span className="font-normal text-text-placeholder">· kosongkan berarti semua</span>
+              Parameter <span className="font-normal text-text-muted">· kosongkan berarti semua</span>
             </legend>
             <p className="mb-1 text-[11.5px] leading-[1.6] text-text-muted">Pilihan berasal dari tag aktif PLTA.</p>
             {tagsQuery.isLoading || tagsQuery.isPlaceholderData ? (
@@ -460,7 +435,7 @@ export default function Reports() {
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block text-[12.5px] text-text-secondary">{option.label}</span>
-                      <span className="mt-0.5 block truncate text-[11px] text-text-placeholder">
+                      <span className="mt-0.5 block truncate text-[11px] text-text-muted">
                         {option.stations.size > 0 ? `${option.stations.size} stasiun` : 'Tag aktif'}
                         {option.units.size > 0 ? ` · ${[...option.units].join(', ')}` : ''}
                       </span>

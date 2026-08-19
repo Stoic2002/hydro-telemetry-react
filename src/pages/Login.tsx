@@ -17,7 +17,10 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const login = useAuthStore((state) => state.login);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const clearError = useAuthStore((state) => state.clearError);
   const navigate = useNavigate();
   const {
     register,
@@ -146,16 +149,9 @@ export default function Login() {
           >
             Masuk
           </Button>
-
-          {/* Forgot Password */}
-          <div className="flex justify-center items-center">
-            <span className="cursor-pointer font-sans text-[12.5px] font-medium leading-normal text-brand-primary-strong transition-colors hover:text-brand-primary-pressed">
-              Lupa password?
-            </span>
-          </div>
         </form>
 
-        <footer className="mt-4 text-[11px] font-medium uppercase tracking-[0.14em] text-text-placeholder">
+        <footer className="mt-4 text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">
           PLN Indonesia Power © 2026
         </footer>
       </div>

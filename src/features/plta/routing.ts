@@ -1,5 +1,3 @@
-import { useParams } from 'react-router-dom';
-
 export type PLTADashboardPage =
   | 'overview'
   | 'telemetering'
@@ -26,14 +24,4 @@ export function getPLTADashboardPath(
 
 export function getUnscopedDashboardPath(page: PLTADashboardPage): string {
   return `/dashboard/${page}`;
-}
-
-export function useActivePLTAId(): string {
-  const { pltaId } = useParams<{ pltaId: string }>();
-
-  if (!isValidPLTAId(pltaId)) {
-    throw new Error('ID PLTA pada route tidak valid');
-  }
-
-  return pltaId;
 }

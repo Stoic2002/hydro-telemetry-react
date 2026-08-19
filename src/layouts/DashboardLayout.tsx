@@ -1,11 +1,12 @@
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Outlet,
   NavLink,
   useLocation,
   useNavigate,
   useParams,
-} from "react-router-dom";
+} from 'react-router-dom';
 import {
   LayoutDashboard,
   Activity,
@@ -20,18 +21,20 @@ import {
   Database,
   Menu,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   getPLTADashboardPath,
   getUnscopedDashboardPath,
   isValidPLTAId,
-} from "../features/plta/routing";
-import { FORECASTING_PLTA_ID } from "../features/forecasting";
-import { usePlantCatalogQuery } from "../features/plta/api/queries";
-import { useAuthStore } from "../store/auth-store";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
-import DashboardPageSkeleton from "../components/skeletons/DashboardPageSkeleton";
-import { getDashboardSkeletonVariant } from "../components/skeletons/dashboardSkeletonVariant";
+  usePlantCatalogQuery,
+} from '../features/plta';
+import { FORECASTING_PLTA_ID } from '../features/forecasting';
+import { canAccessDataTools, canManageUsers } from '../features/auth';
+import { useAuthStore } from '../store/auth-store';
+import AppErrorBoundary from '../components/ui/AppErrorBoundary';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import DashboardPageSkeleton from '../components/skeletons/DashboardPageSkeleton';
+import { getDashboardSkeletonVariant } from '../components/skeletons/dashboardSkeletonVariant';
 
 interface NavItemProps {
   to: string;
@@ -48,8 +51,8 @@ function NavItem({ to, icon, label, collapsed, end }: NavItemProps) {
       end={end}
       className={({ isActive }) =>
         `flex h-10 items-center gap-2.5 overflow-hidden rounded-md px-3 whitespace-nowrap transition-colors ${
-          isActive ? "bg-brand-tint" : "hover:bg-slate-50"
-        } ${collapsed ? "justify-center px-0" : ""}`
+          isActive ? 'bg-brand-tint' : 'hover:bg-surface-base'
+        } ${collapsed ? 'justify-center px-0' : ''}`
       }
       title={collapsed ? label : undefined}
     >
@@ -57,14 +60,14 @@ function NavItem({ to, icon, label, collapsed, end }: NavItemProps) {
         <>
           <span
             aria-hidden="true"
-            className={`shrink-0 ${isActive ? "text-brand-primary-strong" : "text-slate-400"}`}
+            className={`shrink-0 ${isActive ? 'text-brand-primary-strong' : 'text-text-muted'}`}
           >
             {icon}
           </span>
           {!collapsed && (
             <span
               className={`font-sans text-sm ${
-                isActive ? "font-semibold text-brand-primary-strong" : "text-text-secondary"
+                isActive ? 'font-semibold text-brand-primary-strong' : 'text-text-secondary'
               }`}
             >
               {label}
@@ -91,7 +94,9 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const loadingVariant = getDashboardSkeletonVariant(location.pathname);
-  const canAccessDataTools = user?.role !== "Viewer";
+  const queryClient = useQueryClient();
+  const showDataTools = canAccessDataTools(user);
+  const showUserManagement = canManageUsers(user);
 
   const getSelectedDashboardPath = (
     page: Parameters<typeof getPLTADashboardPath>[1],
@@ -107,15 +112,15 @@ export default function DashboardLayout() {
   const handleLogout = useCallback(() => {
     closeLogoutDialog();
     logout();
-    navigate("/login", { replace: true });
+    navigate('/login', { replace: true });
   }, [closeLogoutDialog, logout, navigate]);
 
   // Generate initials for the user avatar
   const getInitials = (name: string) => {
     return name
-      .split(" ")
+      .split(' ')
       .map((n) => n[0])
-      .join("")
+      .join('')
       .slice(0, 2)
       .toUpperCase();
   };
@@ -126,23 +131,23 @@ export default function DashboardLayout() {
         <button
           type="button"
           aria-label="Tutup menu navigasi"
-          className="fixed inset-0 z-30 cursor-default bg-slate-950/35 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-30 cursor-default bg-surface-inverse/35 backdrop-blur-[1px] lg:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 max-w-[85vw] flex-col border-r border-border-subtle bg-white transition-[width,transform] duration-300 lg:translate-x-0 ${
-          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 max-w-[85vw] flex-col border-r border-border-subtle bg-surface-raised transition-[width,transform] duration-300 lg:translate-x-0 ${
+          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } ${
-          collapsed ? "lg:w-[72px]" : "lg:w-64"
+          collapsed ? 'lg:w-[72px]' : 'lg:w-64'
         }`}
       >
         {/* Sidebar Header */}
         <div className="relative flex h-[72px] shrink-0 items-center gap-2.5 border-b border-border-subtle px-4 transition-all duration-300">
           <div
-            className={`flex items-center gap-2.5 overflow-hidden transition-all duration-300 ${collapsed ? "w-full justify-center" : "w-full"}`}
+            className={`flex items-center gap-2.5 overflow-hidden transition-all duration-300 ${collapsed ? 'w-full justify-center' : 'w-full'}`}
           >
             <img
               src="/logo.png"
@@ -164,8 +169,8 @@ export default function DashboardLayout() {
           {/* Floating Collapse Button (No Shadow) */}
           <button
             type="button"
-            aria-label={collapsed ? "Perluas menu navigasi" : "Ciutkan menu navigasi"}
-            className="absolute -right-3 top-[88px] z-50 hidden size-6 cursor-pointer items-center justify-center rounded-full border border-border-subtle bg-white text-slate-500 transition-colors hover:border-brand-primary-strong hover:text-brand-primary-strong lg:flex"
+            aria-label={collapsed ? 'Perluas menu navigasi' : 'Ciutkan menu navigasi'}
+            className="absolute -right-3 top-[88px] z-50 hidden size-6 cursor-pointer items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-text-muted transition-colors hover:border-brand-primary-strong hover:text-brand-primary-strong lg:flex"
             onClick={() => setCollapsed(!collapsed)}
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -174,7 +179,7 @@ export default function DashboardLayout() {
           <button
             type="button"
             aria-label="Tutup menu navigasi"
-            className="ml-auto flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 lg:hidden"
+            className="ml-auto flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-muted hover:bg-surface-overlay lg:hidden"
             onClick={() => setIsMobileSidebarOpen(false)}
           >
             <X size={19} />
@@ -187,41 +192,41 @@ export default function DashboardLayout() {
           onClick={() => setIsMobileSidebarOpen(false)}
         >
           <NavItem
-            to={getUnscopedDashboardPath("overview")}
+            to={getUnscopedDashboardPath('overview')}
             end
             collapsed={collapsed}
             icon={<LayoutDashboard size={18} strokeWidth={1.75} />}
             label="Overview"
           />
           <NavItem
-            to={getSelectedDashboardPath("telemetering")}
+            to={getSelectedDashboardPath('telemetering')}
             collapsed={collapsed}
             icon={<Activity size={18} strokeWidth={1.75} />}
             label="Telemetering"
           />
           <NavItem
-            to={getPLTADashboardPath(FORECASTING_PLTA_ID, "forecasting")}
+            to={getPLTADashboardPath(FORECASTING_PLTA_ID, 'forecasting')}
             collapsed={collapsed}
             icon={<TrendingUp size={18} strokeWidth={1.75} />}
             label="Forecasting"
           />
           <NavItem
-            to={getSelectedDashboardPath("trends")}
+            to={getSelectedDashboardPath('trends')}
             collapsed={collapsed}
             icon={<BarChart3 size={18} strokeWidth={1.75} />}
             label="Tren & Grafik"
           />
           <NavItem
-            to={getSelectedDashboardPath("laporan")}
+            to={getSelectedDashboardPath('laporan')}
             collapsed={collapsed}
             icon={<FileText size={18} strokeWidth={1.75} />}
             label="Laporan"
           />
 
-          {canAccessDataTools && (
+          {showDataTools && (
             <>
               <NavItem
-                to={getSelectedDashboardPath("input-ghw")}
+                to={getSelectedDashboardPath('input-ghw')}
                 collapsed={collapsed}
                 icon={<Edit3 size={18} strokeWidth={1.75} />}
                 label="Input GHW"
@@ -236,21 +241,20 @@ export default function DashboardLayout() {
             </>
           )}
 
-          {user &&
-            (user.role === "Super Admin" || user.role === "Admin UBP") && (
-              <NavItem
-                to={getSelectedDashboardPath("user-management")}
-                collapsed={collapsed}
-                icon={<Users size={18} strokeWidth={1.75} />}
-                label="User Management"
-              />
-            )}
+          {showUserManagement && (
+            <NavItem
+              to={getSelectedDashboardPath('user-management')}
+              collapsed={collapsed}
+              icon={<Users size={18} strokeWidth={1.75} />}
+              label="User Management"
+            />
+          )}
         </nav>
 
         {/* Sidebar Footer / Profile Info (No Shadows) */}
         <div
           className={`flex h-[68px] shrink-0 items-center border-t border-border-subtle transition-all duration-300 ${
-            collapsed ? "h-auto flex-col justify-center gap-2 px-2 py-2" : "justify-between gap-2.5 px-4"
+            collapsed ? 'h-auto flex-col justify-center gap-2 px-2 py-2' : 'justify-between gap-2.5 px-4'
           }`}
         >
           {user && (
@@ -258,12 +262,12 @@ export default function DashboardLayout() {
               type="button"
               onClick={() => {
                 setIsMobileSidebarOpen(false);
-                navigate(getSelectedDashboardPath("account"));
+                navigate(getSelectedDashboardPath('account'));
               }}
               title="Profil Saya"
-              className={`flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden border-0 bg-transparent p-0 text-left ${collapsed ? "w-full justify-center" : "flex-1"}`}
+              className={`flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden border-0 bg-transparent p-0 text-left ${collapsed ? 'w-full justify-center' : 'flex-1'}`}
             >
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-overlay font-sans text-xs font-semibold leading-none text-slate-600">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-overlay font-sans text-xs font-semibold leading-none text-text-subtle">
                 {getInitials(user.name)}
               </div>
               {!collapsed && (
@@ -281,7 +285,7 @@ export default function DashboardLayout() {
           <button
             type="button"
             aria-label="Keluar dari aplikasi"
-            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40"
             onClick={() => setIsLogoutDialogOpen(true)}
             title="Keluar"
           >
@@ -293,14 +297,14 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div
         className={`flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ${
-          collapsed ? "lg:ml-[72px]" : "lg:ml-64"
+          collapsed ? 'lg:ml-[72px]' : 'lg:ml-64'
         }`}
       >
-        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border-subtle bg-white/95 px-4 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-raised/95 px-4 backdrop-blur lg:hidden">
           <button
             type="button"
             aria-label="Buka menu navigasi"
-            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border-subtle text-slate-600 hover:bg-slate-50"
+            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border-subtle text-text-subtle hover:bg-surface-base"
             onClick={() => {
               setCollapsed(false);
               setIsMobileSidebarOpen(true);
@@ -309,18 +313,24 @@ export default function DashboardLayout() {
             <Menu size={20} />
           </button>
           <img src="/logo.png" alt="" className="size-8 rounded-md object-contain" />
-          <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
+          <span className="min-w-0 truncate text-sm font-semibold text-text-strong">
             PLTA Monitoring
           </span>
         </header>
 
         {/* Page Content */}
         <main className="mx-auto w-full min-w-0 max-w-[1440px] flex-1 p-3 sm:p-4 lg:p-6">
-          <Suspense
-            fallback={<DashboardPageSkeleton variant={loadingVariant} />}
+          <AppErrorBoundary
+            scope="dashboard-page"
+            resetKey={location.pathname}
+            onReset={() => queryClient.resetQueries()}
           >
-            <Outlet />
-          </Suspense>
+            <Suspense
+              fallback={<DashboardPageSkeleton variant={loadingVariant} />}
+            >
+              <Outlet />
+            </Suspense>
+          </AppErrorBoundary>
         </main>
       </div>
 

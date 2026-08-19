@@ -7,9 +7,9 @@ import { usePlantCatalogQuery } from '../api/queries';
 import { getPlantDisplayName } from '../presentation';
 import {
   getPLTADashboardPath,
-  useActivePLTAId,
   type PLTADashboardPage,
 } from '../routing';
+import { useActivePLTAId } from '../active-plta-context';
 
 interface PlantSwitcherProps {
   page: PLTADashboardPage;
@@ -36,7 +36,7 @@ export default function PlantSwitcher({ page, className = '' }: PlantSwitcherPro
       <button
         type="button"
         onClick={() => void plantsQuery.refetch()}
-        className={`inline-flex h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 sm:w-[240px] ${className}`}
+        className={`inline-flex h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-200 bg-surface-raised px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 sm:w-[240px] ${className}`}
       >
         <RefreshCw size={14} />
         Muat ulang daftar PLTA
@@ -46,7 +46,7 @@ export default function PlantSwitcher({ page, className = '' }: PlantSwitcherPro
 
   if (plantsQuery.data.length === 0) {
     return (
-      <div className={`flex h-11 w-full shrink-0 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs text-slate-500 sm:w-[240px] ${className}`}>
+      <div className={`flex h-11 w-full shrink-0 items-center rounded-xl border border-border-subtle bg-surface-base px-3 text-xs text-text-muted sm:w-[240px] ${className}`}>
         Belum ada PLTA tersedia
       </div>
     );

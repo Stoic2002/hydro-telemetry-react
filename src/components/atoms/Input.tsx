@@ -44,7 +44,7 @@ export default function Input({
 
       <div className="relative flex min-w-0 items-center">
         {leftIcon && (
-          <div className={`pointer-events-none absolute text-slate-400 ${size === 'md' ? 'left-3.5' : 'left-3'}`}>
+          <div className={`pointer-events-none absolute text-text-muted ${size === 'md' ? 'left-3.5' : 'left-3'}`}>
             {leftIcon}
           </div>
         )}
@@ -52,12 +52,12 @@ export default function Input({
         <input
           id={inputId}
           className={`
-            w-full border bg-white py-0 text-slate-800
+            w-full border bg-surface-raised py-0 text-text-strong
             outline-none transition-[border-color,box-shadow,background-color] duration-150
-            placeholder:text-slate-400
-            hover:border-slate-300
+            placeholder:text-text-placeholder
+            hover:border-border-strong
             focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15
-            disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-slate-50 disabled:text-slate-400
+            disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-surface-base disabled:text-text-muted
             ${SIZE_STYLES[size]}
             ${leftIcon ? ICON_PADDING[size].left : ''}
             ${rightIcon ? ICON_PADDING[size].right : ''}
@@ -67,7 +67,7 @@ export default function Input({
         />
 
         {rightIcon && (
-          <div className={`absolute text-slate-400 ${size === 'md' ? 'right-3.5' : 'right-3'}`}>
+          <div className={`absolute text-text-muted ${size === 'md' ? 'right-3.5' : 'right-3'}`}>
             {rightIcon}
           </div>
         )}
@@ -76,7 +76,7 @@ export default function Input({
       {error ? (
         <span className="text-[11.5px] font-medium text-status-danger-strong">{error}</span>
       ) : helperText ? (
-        <span className="text-[11.5px] text-slate-500">{helperText}</span>
+        <span className="text-[11.5px] text-text-muted">{helperText}</span>
       ) : null}
     </div>
   );

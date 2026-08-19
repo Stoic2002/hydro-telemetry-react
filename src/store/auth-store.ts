@@ -7,8 +7,7 @@ import {
   setAuthTokens,
   subscribeToAuthSession,
 } from '../api/http/auth-session';
-import { authRepository } from '../features/auth/api/repository';
-import { mapAuthUserToUIUser } from '../features/auth/model';
+import { authRepository, mapAuthUserToUIUser } from '../features/auth';
 
 interface AuthState {
   user: User | null;

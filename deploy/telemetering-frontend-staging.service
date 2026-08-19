@@ -1,0 +1,37 @@
+# Staging — menyajikan dist-staging/ pada port 4174.
+#
+# Pemasangan:
+#   sudo cp deploy/telemetering-frontend-staging.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now telemetering-frontend-staging
+
+[Unit]
+Description=Hydro Telemetry React Frontend (staging)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=telemetring
+WorkingDirectory=/var/www/frontend-telemetering/hydro-telemetry-react
+
+# Alamat backend sudah ter-bundle saat build, jadi yang membedakan staging dari
+# production adalah direktori outputnya, bukan flag di sini. `--mode staging`
+# hanya memuat .env.staging untuk konfigurasi server preview.
+ExecStart=/home/telemetring/.bun/bin/bunx vite preview \
+  --mode staging \
+  --outDir dist-staging \
+  --host 0.0.0.0 \
+  --port 4174 \
+  --strictPort
+
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/frontend-telemetering/hydro-telemetry-react
+
+[Install]
+WantedBy=multi-user.target

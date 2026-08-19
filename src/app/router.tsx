@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 import {
   BrowserRouter,
   Navigate,
@@ -18,6 +18,12 @@ import {
   usePLTADetailQuery,
 } from '../features/plta/api/queries';
 import { getPLTAErrorMessage } from '../features/plta/error';
+import { toPLTADashboardInfo } from '../features/plta/dashboard-adapter';
+import {
+  ActivePLTAContext,
+  type ActivePLTA,
+} from '../features/plta/active-plta-context';
+import { canAccessDataTools, canManageUsers } from '../features/auth/permissions';
 import { useAuthStore } from '../store/auth-store';
 import AppShellSkeleton from '../components/skeletons/AppShellSkeleton';
 import DashboardPageSkeleton from '../components/skeletons/DashboardPageSkeleton';
@@ -63,7 +69,17 @@ function GuestOnlyRoute({ children }: { children: ReactNode }) {
 function AdminOnlyRoute({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
 
-  if (user?.role !== 'Super Admin' && user?.role !== 'Admin UBP') {
+  if (!canManageUsers(user)) {
+    return <Navigate to="/dashboard/overview" replace />;
+  }
+
+  return children;
+}
+
+function DataToolsRoute({ children }: { children: ReactNode }) {
+  const user = useAuthStore((state) => state.user);
+
+  if (!canAccessDataTools(user)) {
     return <Navigate to="/dashboard/overview" replace />;
   }
 
@@ -72,6 +88,13 @@ function AdminOnlyRoute({ children }: { children: ReactNode }) {
 
 function ExistingPLTARoute({ pltaId }: { pltaId: string }) {
   const plantQuery = usePLTADetailQuery(pltaId);
+  const plant = plantQuery.data;
+  const activePLTA = useMemo<ActivePLTA | null>(() => {
+    if (!plant) return null;
+
+    const plta = toPLTADashboardInfo(plant);
+    return plta ? { pltaId, plant, plta } : null;
+  }, [plant, pltaId]);
 
   if (plantQuery.isPending) {
     return <PlantRouteLoading />;
@@ -86,7 +109,7 @@ function ExistingPLTARoute({ pltaId }: { pltaId: string }) {
     );
   }
 
-  if (!plantQuery.data) {
+  if (!activePLTA) {
     return (
       <PlantRouteError
         message="PLTA yang dipilih tidak ditemukan atau sudah tidak tersedia. Pilih PLTA lain dari sidebar."
@@ -95,7 +118,13 @@ function ExistingPLTARoute({ pltaId }: { pltaId: string }) {
     );
   }
 
-  return <Outlet />;
+  // Turunan hanya dirender setelah PLTA aktif benar-benar tersedia, sehingga
+  // halaman tidak perlu lagi menangani kondisi datanya kosong.
+  return (
+    <ActivePLTAContext.Provider value={activePLTA}>
+      <Outlet />
+    </ActivePLTAContext.Provider>
+  );
 }
 
 function ValidPLTARoute() {
@@ -120,12 +149,12 @@ function PlantRouteLoading() {
 function PlantRouteError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex min-h-[340px] items-center justify-center py-8">
-      <div className="flex max-w-md flex-col items-center rounded-2xl border border-red-100 bg-white px-7 py-8 text-center">
+      <div className="flex max-w-md flex-col items-center rounded-2xl border border-red-100 bg-surface-raised px-7 py-8 text-center">
         <div className="flex size-12 items-center justify-center rounded-full bg-red-50 text-red-600 ring-4 ring-red-50/70">
           <Building2 size={22} />
         </div>
-        <h1 className="mt-4 font-display text-lg font-bold text-slate-900">Data PLTA belum dapat dimuat</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">{message}</p>
+        <h1 className="mt-4 font-display text-lg font-bold text-text-primary">Data PLTA belum dapat dimuat</h1>
+        <p className="mt-2 text-sm leading-6 text-text-muted">{message}</p>
         <button
           type="button"
           onClick={onRetry}
@@ -162,10 +191,10 @@ function DefaultPLTARedirect({ page }: { page: PLTADashboardPage }) {
   if (!defaultPlant) {
     return (
       <div className="flex min-h-[340px] items-center justify-center py-8">
-        <div className="max-w-md rounded-2xl border border-slate-200 bg-white px-7 py-8 text-center">
-          <Building2 className="mx-auto text-slate-300" size={38} />
-          <h1 className="mt-4 font-display text-lg font-bold text-slate-900">Belum ada PLTA</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+        <div className="max-w-md rounded-2xl border border-border-subtle bg-surface-raised px-7 py-8 text-center">
+          <Building2 className="mx-auto text-disabled" size={38} />
+          <h1 className="mt-4 font-display text-lg font-bold text-text-primary">Belum ada PLTA</h1>
+          <p className="mt-2 text-sm leading-6 text-text-muted">
             Server belum memiliki plant yang dapat ditampilkan untuk akun ini.
           </p>
         </div>
@@ -212,7 +241,14 @@ export default function AppRouter() {
               path="monitoring"
               element={<LegacyDashboardRedirect page="telemetering" />}
             />
-            <Route path="catalog" element={<ResourceCatalog />} />
+            <Route
+              path="catalog"
+              element={(
+                <DataToolsRoute>
+                  <ResourceCatalog />
+                </DataToolsRoute>
+              )}
+            />
             <Route
               path="plta/:pltaId/overview"
               element={<Navigate to="/dashboard/overview" replace />}
@@ -224,7 +260,14 @@ export default function AppRouter() {
               <Route path="forecasting" element={<Forecasting />} />
               <Route path="trends" element={<Trends />} />
               <Route path="laporan" element={<Laporan />} />
-              <Route path="input-ghw" element={<InputGHW />} />
+              <Route
+                path="input-ghw"
+                element={(
+                  <DataToolsRoute>
+                    <InputGHW />
+                  </DataToolsRoute>
+                )}
+              />
               <Route path="account" element={<AccountSettings />} />
               <Route
                 path="user-management"

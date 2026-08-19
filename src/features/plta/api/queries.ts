@@ -2,14 +2,11 @@ import {
   keepPreviousData,
   useQuery,
 } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { toPLTADashboardInfo } from '../dashboard-adapter';
 import type {
   ListParams,
   Plant,
   PlantTagListParams,
 } from '../model';
-import { useActivePLTAId } from '../routing';
 import { pltaRepository } from './repository';
 
 const CATALOG_PAGE_LIMIT = 200;
@@ -126,19 +123,4 @@ export function usePLTATagsQuery(pltaId: string, params: PlantTagListParams) {
     enabled: Boolean(pltaId),
     placeholderData: keepPreviousData,
   });
-}
-
-export function useActivePLTA() {
-  const pltaId = useActivePLTAId();
-  const { data: plant } = usePLTADetailQuery(pltaId);
-  const plta = useMemo(
-    () => plant ? toPLTADashboardInfo(plant) : null,
-    [plant],
-  );
-
-  if (!plant || !plta) {
-    throw new Error(`PLTA ${pltaId} belum tersedia`);
-  }
-
-  return { plant, plta, pltaId };
 }

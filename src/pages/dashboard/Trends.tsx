@@ -21,22 +21,23 @@ import {
 import Select from '../../components/atoms/Select';
 import SegmentedControl from '../../components/atoms/SegmentedControl';
 import Skeleton from '../../components/atoms/Skeleton';
-import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import { PlantSwitcher, useActivePLTA, usePLTATagsQuery } from '../../features/plta';
 import PageHeader from '../../components/ui/PageHeader';
 import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
 import Banner from '../../components/ui/Banner';
 import { chartValueDomain } from '../../shared/utils/chart';
 import {
-  useActivePLTA,
-  usePLTATagsQuery,
-} from '../../features/plta/api/queries';
-import {
+  alignTrendRange,
   useTrendQuery,
   type TrendResolution,
   type TrendSeries,
 } from '../../features/trends';
 import { formatNumber } from '../../shared/utils/number';
+import {
+  formatDayMonthTimeWIB,
+  formatDayMonthWIB,
+} from '../../shared/lib/date';
 
 interface TrendCardProps {
   title: string;
@@ -74,7 +75,14 @@ const TREND_PERIODS = [
   '30 Hari Terakhir',
 ] as const;
 
-const TREND_COLORS = ['#0891b2', '#2563eb', '#7c3aed', '#0e7490', '#d97706', '#059669'];
+const TREND_COLORS = [
+  'var(--color-chart-series-1)',
+  'var(--color-chart-series-2)',
+  'var(--color-chart-series-3)',
+  'var(--color-chart-series-4)',
+  'var(--color-chart-series-5)',
+  'var(--color-chart-series-6)',
+];
 
 type TrendPeriod = (typeof TREND_PERIODS)[number];
 
@@ -98,42 +106,19 @@ function periodConfig(period: TrendPeriod): { durationMs: number; resolution: Tr
   return { durationMs: 30 * 24 * 60 * 60 * 1_000, resolution: '1d' };
 }
 
-function formatPointTime(value: string | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Jakarta',
-  }).format(date);
-}
-
-function formatAxisTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    timeZone: 'Asia/Jakarta',
-  }).format(date);
-}
-
 function TrendTooltip({ active, payload, unit, color }: TrendTooltipProps) {
   const point = payload?.[0]?.payload;
   if (!active || !point || typeof point.value !== 'number') return null;
 
   return (
-    <div className="min-w-44 rounded-md border border-slate-700/80 bg-slate-900/95 p-3 text-white shadow-2xl backdrop-blur-md">
-      <div className="flex items-center gap-2 text-[11px] font-medium text-slate-300">
+    <div className="min-w-44 rounded-md border border-border-inverse/80 bg-surface-inverse/95 p-3 text-white shadow-2xl backdrop-blur-md">
+      <div className="flex items-center gap-2 text-[11px] font-medium text-text-on-inverse">
         <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
-        {formatPointTime(point.time)}
+        {formatDayMonthTimeWIB(point.time)}
       </div>
       <p className="mt-2 text-lg font-bold tracking-tight">
         {formatNumber(point.value, 2)}
-        <span className="ml-1.5 text-xs font-medium text-slate-400">{unit}</span>
+        <span className="ml-1.5 text-xs font-medium text-text-on-inverse-muted">{unit}</span>
       </p>
     </div>
   );
@@ -150,21 +135,41 @@ function TrendCard({
   isError,
   onRetry,
 }: TrendCardProps) {
-  const points = series?.points ?? [];
-  const chartData: TrendChartDatum[] = points.map((point) => ({
-    time: point.time,
-    value: point.value,
-  }));
-  const values = points.map((point) => point.value);
-  const latest = points.at(-1);
-  const first = points.at(0);
-  const averageValue = values.length > 0
-    ? values.reduce((total, value) => total + value, 0) / values.length
-    : 0;
-  const minimumValue = values.length > 0 ? Math.min(...values) : 0;
-  const maximumValue = values.length > 0 ? Math.max(...values) : 0;
-  const changeValue = latest && first ? latest.value - first.value : 0;
-  const yDomain = chartValueDomain(values);
+  const points = series?.points;
+  // Hover pada Recharts memicu render ulang kartu ini. Tanpa memo, seluruh
+  // agregasi di bawah dihitung ulang untuk setiap gerakan kursor.
+  const statistics = useMemo(() => {
+    const seriesPoints = points ?? [];
+    const values = seriesPoints.map((point) => point.value);
+    const latest = seriesPoints.at(-1);
+    const first = seriesPoints.at(0);
+
+    return {
+      points: seriesPoints,
+      chartData: seriesPoints.map<TrendChartDatum>((point) => ({
+        time: point.time,
+        value: point.value,
+      })),
+      latest,
+      averageValue: values.length > 0
+        ? values.reduce((total, value) => total + value, 0) / values.length
+        : 0,
+      minimumValue: values.length > 0 ? Math.min(...values) : 0,
+      maximumValue: values.length > 0 ? Math.max(...values) : 0,
+      changeValue: latest && first ? latest.value - first.value : 0,
+      yDomain: chartValueDomain(values),
+    };
+  }, [points]);
+  const {
+    points: chartPoints,
+    chartData,
+    latest,
+    averageValue,
+    minimumValue,
+    maximumValue,
+    changeValue,
+    yDomain,
+  } = statistics;
   const gradientId = `trend-fill-${title.toLocaleLowerCase('id-ID').replace(/[^a-z0-9]+/g, '-')}`;
   const ChangeIcon = changeValue > 0
     ? ArrowUpRight
@@ -175,13 +180,13 @@ function TrendCard({
     ? 'text-emerald-600'
     : changeValue < 0
       ? 'text-amber-600'
-      : 'text-slate-500';
+      : 'text-text-muted';
 
   const commonChartElements = (
     <>
       <CartesianGrid
         vertical={false}
-        stroke="#e2e8f0"
+        stroke="var(--color-chart-grid)"
         strokeDasharray="4 6"
         strokeOpacity={0.9}
       />
@@ -190,8 +195,8 @@ function TrendCard({
         axisLine={false}
         tickLine={false}
         minTickGap={46}
-        tick={{ fill: '#64748b', fontSize: 11 }}
-        tickFormatter={(value: string) => formatAxisTime(value)}
+        tick={{ fill: 'var(--color-chart-axis)', fontSize: 11 }}
+        tickFormatter={(value: string) => formatDayMonthWIB(value)}
         dy={10}
       />
       <YAxis
@@ -199,24 +204,24 @@ function TrendCard({
         tickLine={false}
         width={54}
         domain={yDomain}
-        tick={{ fill: '#64748b', fontSize: 11 }}
+        tick={{ fill: 'var(--color-chart-axis)', fontSize: 11 }}
         tickFormatter={(value: number) => formatNumber(value, Math.abs(value) >= 100 ? 0 : 1)}
       />
       <Tooltip
         cursor={chartType === 'bar'
-          ? { fill: `${color}0d` }
+          ? { fill: color, fillOpacity: 0.05 }
           : { stroke: color, strokeWidth: 1.5, strokeDasharray: '5 5' }}
         content={<TrendTooltip unit={unit} color={color} />}
       />
       <ReferenceLine
         y={averageValue}
-        stroke="#94a3b8"
+        stroke="var(--color-chart-reference)"
         strokeDasharray="5 5"
         strokeOpacity={0.7}
         label={{
           value: 'Rata-rata',
           position: 'insideTopRight',
-          fill: '#94a3b8',
+          fill: 'var(--color-chart-reference)',
           fontSize: 10,
         }}
       />
@@ -224,7 +229,7 @@ function TrendCard({
   );
 
   return (
-    <article className="overflow-hidden rounded-md border border-border-subtle bg-white">
+    <article className="overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
       <div className="p-4 sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div>
@@ -233,13 +238,13 @@ function TrendCard({
           </div>
 
           <div className="text-left sm:text-right">
-            <p className="text-[11px] font-medium text-slate-400">Nilai terkini</p>
-            <p className="mt-0.5 text-xl font-semibold tracking-tight text-slate-900">
+            <p className="text-[11px] font-medium text-text-muted">Nilai terkini</p>
+            <p className="mt-0.5 text-xl font-semibold tracking-tight text-text-primary">
               {latest ? formatNumber(latest.value, 2) : 'N/A'}
-              <span className="ml-1.5 text-xs font-medium text-slate-400">{unit}</span>
+              <span className="ml-1.5 text-xs font-medium text-text-muted">{unit}</span>
             </p>
-            <p className="mt-0.5 text-[10px] text-slate-400">
-              {latest ? formatPointTime(latest.time) : 'Belum ada data'}
+            <p className="mt-0.5 text-[10px] text-text-muted">
+              {latest ? formatDayMonthTimeWIB(latest.time) : 'Belum ada data'}
             </p>
           </div>
         </div>
@@ -271,8 +276,8 @@ function TrendCard({
             onRetry={onRetry}
             className="mt-5 h-[390px] justify-center"
           />
-        ) : points.length === 0 ? (
-          <div className="mt-5 flex h-[390px] items-center justify-center border-y border-surface-overlay bg-slate-50/40 text-xs text-slate-400">
+        ) : chartPoints.length === 0 ? (
+          <div className="mt-5 flex h-[390px] items-center justify-center border-y border-surface-overlay bg-surface-base/40 text-xs text-text-muted">
             Belum ada titik data pada periode ini.
           </div>
         ) : (
@@ -287,24 +292,24 @@ function TrendCard({
                   key={statistic.label}
                   className="border-surface-overlay px-3 py-3 even:border-l lg:border-l lg:first:border-l-0 sm:px-4"
                 >
-                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-slate-400">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-text-muted">
                     {statistic.label}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-800 sm:text-base">
+                  <p className="mt-1 text-sm font-semibold text-text-strong sm:text-base">
                     {formatNumber(statistic.value, 2)}
-                    <span className="ml-1 text-[10px] font-semibold text-slate-400">{unit}</span>
+                    <span className="ml-1 text-[10px] font-semibold text-text-muted">{unit}</span>
                   </p>
                 </div>
               ))}
               <div className="border-l border-surface-overlay px-3 py-3 sm:px-4">
-                <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-slate-400">
+                <p className="text-[10px] font-medium uppercase tracking-[0.05em] text-text-muted">
                   Perubahan periode
                 </p>
                 <p className={`mt-1 flex items-center gap-1 text-sm font-semibold sm:text-base ${changeClass}`}>
                   <ChangeIcon size={16} aria-hidden="true" />
                   {changeValue > 0 ? '+' : ''}
                   {formatNumber(changeValue, 2)}
-                  <span className="text-[10px] font-semibold text-slate-400">{unit}</span>
+                  <span className="text-[10px] font-semibold text-text-muted">{unit}</span>
                 </p>
               </div>
             </div>
@@ -354,17 +359,17 @@ function TrendCard({
                       stroke={color}
                       strokeWidth={3}
                       fill={`url(#${gradientId})`}
-                      dot={points.length <= 32
+                      dot={chartPoints.length <= 32
                         ? {
                           r: 3,
-                          fill: '#ffffff',
+                          fill: 'var(--color-surface-raised)',
                           stroke: color,
                           strokeWidth: 2,
                         }
                         : false}
                       activeDot={{
                         r: 6,
-                        fill: '#ffffff',
+                        fill: 'var(--color-surface-raised)',
                         stroke: color,
                         strokeWidth: 3,
                       }}
@@ -373,10 +378,10 @@ function TrendCard({
                   </AreaChart>
                 )}
               </ResponsiveContainer>
-              <div className="flex flex-col justify-between gap-1 border-t border-surface-overlay pt-3 text-[10px] text-slate-400 sm:flex-row sm:items-center">
+              <div className="flex flex-col justify-between gap-1 border-t border-surface-overlay pt-3 text-[10px] text-text-muted sm:flex-row sm:items-center">
                 <span>Arahkan kursor ke grafik untuk melihat detail nilai.</span>
                 <span>
-                  {points.length.toLocaleString('id-ID')} titik · resolusi {series?.resolution} · agregasi lintas stasiun
+                  {chartPoints.length.toLocaleString('id-ID')} titik · resolusi {series?.resolution} · agregasi lintas stasiun
                 </span>
               </div>
             </div>
@@ -446,10 +451,11 @@ export default function Trends() {
   const parameter = parameterConfig.value;
 
   const timeRange = useMemo(() => {
-    const to = new Date();
     const config = periodConfig(period);
-    const from = new Date(to.getTime() - config.durationMs);
-    return { from: from.toISOString(), to: to.toISOString(), resolution: config.resolution };
+    return {
+      ...alignTrendRange(new Date(), config.durationMs, config.resolution),
+      resolution: config.resolution,
+    };
   }, [period]);
 
   const trendQuery = useTrendQuery({
@@ -498,7 +504,7 @@ export default function Trends() {
       </section>
 
       {!tagsQuery.isLoading && !tagsQuery.isPlaceholderData && !tagsQuery.isError && parameterOptions.length === 0 ? (
-        <div className="rounded-md border border-border-subtle bg-white">
+        <div className="rounded-md border border-border-subtle bg-surface-raised">
           <EmptyState
             icon={<Activity size={19} />}
             title="Belum ada parameter"

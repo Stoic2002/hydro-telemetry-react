@@ -224,22 +224,22 @@ export default function TelemetryUploadSheet({
           <p className="text-xs font-medium text-cyan-700">
             {target.parameter}
           </p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">
+          <p className="mt-1 text-sm font-semibold text-text-strong">
             {target.label}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-text-muted">
             Satuan {unit || 'mengikuti konfigurasi tag'}
           </p>
         </section>
 
         {target.tags.length > 1 ? (
-          <label className="flex flex-col gap-2 text-xs font-semibold text-slate-500">
+          <label className="flex flex-col gap-2 text-xs font-semibold text-text-muted">
             Station
             <select
               value={station}
               disabled={isPending}
               onChange={(event) => setStation(event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-normal text-slate-800 outline-none transition-colors focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+              className="h-11 rounded-xl border border-border-subtle bg-surface-raised px-3.5 text-sm font-normal text-text-strong outline-none transition-colors focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-surface-base"
             >
               {target.tags.map((tag) => (
                 <option key={tag.id} value={tag.station}>
@@ -250,14 +250,14 @@ export default function TelemetryUploadSheet({
           </label>
         ) : (
           <div className="flex items-center justify-between border-b border-surface-overlay pb-4 text-xs">
-            <span className="font-medium text-slate-500">Station</span>
-            <span className="font-semibold text-slate-700">
+            <span className="font-medium text-text-muted">Station</span>
+            <span className="font-semibold text-text-secondary">
               {station || 'Default'}
             </span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 border-b border-slate-200">
+        <div className="grid grid-cols-2 border-b border-border-subtle">
           <button
             type="button"
             disabled={isPending}
@@ -265,7 +265,7 @@ export default function TelemetryUploadSheet({
             className={`cursor-pointer border-b-2 px-3 py-3 text-xs font-semibold transition-colors ${
               mode === 'manual'
                 ? 'border-cyan-600 text-cyan-700'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                : 'border-transparent text-text-muted hover:text-text-secondary'
             }`}
           >
             Input Manual
@@ -277,7 +277,7 @@ export default function TelemetryUploadSheet({
             className={`cursor-pointer border-b-2 px-3 py-3 text-xs font-semibold transition-colors ${
               mode === 'excel'
                 ? 'border-cyan-600 text-cyan-700'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                : 'border-transparent text-text-muted hover:text-text-secondary'
             }`}
           >
             Upload Excel
@@ -287,20 +287,20 @@ export default function TelemetryUploadSheet({
         {mode === 'manual' ? (
           <section className="flex flex-col gap-4">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">
+              <h3 className="text-sm font-semibold text-text-strong">
                 Titik data
               </h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
+              <p className="mt-1 text-xs leading-5 text-text-muted">
                 Waktu tanpa zona waktu diproses server sebagai WIB. Timestamp
                 yang pernah tersimpan akan diperbarui.
               </p>
             </div>
 
-            <div className="divide-y divide-slate-100 border-y border-surface-overlay">
+            <div className="divide-y divide-surface-overlay border-y border-surface-overlay">
               {rows.map((row, index) => (
                 <div key={row.id} className="py-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-500">
+                    <span className="text-xs font-semibold text-text-muted">
                       Data {index + 1}
                     </span>
                     {rows.length > 1 && (
@@ -309,35 +309,35 @@ export default function TelemetryUploadSheet({
                         disabled={isPending}
                         onClick={() => removeRow(row.id)}
                         aria-label={`Hapus data ${index + 1}`}
-                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Trash2 size={15} />
                       </button>
                     )}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1.5 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1.5 text-xs font-medium text-text-muted">
                       Tanggal
                       <input
                         type="date"
                         value={row.date}
                         disabled={isPending}
                         onChange={(event) => updateRow(row.id, 'date', event.target.value)}
-                        className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-slate-800 outline-none hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+                        className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-text-strong outline-none hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-surface-base"
                       />
                     </label>
-                    <label className="flex flex-col gap-1.5 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1.5 text-xs font-medium text-text-muted">
                       Jam
                       <input
                         type="time"
                         value={row.time}
                         disabled={isPending}
                         onChange={(event) => updateRow(row.id, 'time', event.target.value)}
-                        className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-slate-800 outline-none hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+                        className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-text-strong outline-none hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-surface-base"
                       />
                     </label>
                   </div>
-                  <label className="mt-3 flex flex-col gap-1.5 text-xs font-medium text-slate-500">
+                  <label className="mt-3 flex flex-col gap-1.5 text-xs font-medium text-text-muted">
                     Nilai {unit ? `(${unit})` : ''}
                     <input
                       type="number"
@@ -346,7 +346,7 @@ export default function TelemetryUploadSheet({
                       disabled={isPending}
                       onChange={(event) => updateRow(row.id, 'value', event.target.value)}
                       placeholder="0"
-                      className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-slate-800 outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+                      className="h-10 rounded-md border border-border-subtle px-3 text-[13px] text-text-strong outline-none placeholder:text-text-placeholder hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:bg-surface-base"
                     />
                   </label>
                 </div>
@@ -369,21 +369,21 @@ export default function TelemetryUploadSheet({
         ) : (
           <section className="flex flex-col gap-4">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">
+              <h3 className="text-sm font-semibold text-text-strong">
                 File time-series
               </h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
+              <p className="mt-1 text-xs leading-5 text-text-muted">
                 Satu file hanya untuk parameter ini. Header yang diterima:
                 datetime + value, atau tanggal + jam + value.
               </p>
             </div>
 
-            <label className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-slate-300 px-5 py-8 text-center transition-colors hover:border-cyan-400 hover:bg-cyan-50/30">
+            <label className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-border-strong px-5 py-8 text-center transition-colors hover:border-cyan-400 hover:bg-cyan-50/30">
               <FileSpreadsheet size={30} className="text-cyan-600" />
-              <span className="mt-3 text-sm font-semibold text-slate-700">
+              <span className="mt-3 text-sm font-semibold text-text-secondary">
                 {file?.name ?? 'Pilih file Excel'}
               </span>
-              <span className="mt-1 text-xs text-slate-500">
+              <span className="mt-1 text-xs text-text-muted">
                 Format .xlsx, maksimal 5 MB
               </span>
               <input

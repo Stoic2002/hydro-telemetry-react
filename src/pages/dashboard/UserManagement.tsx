@@ -2,20 +2,18 @@ import { useCallback, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit2, Plus, Search, Trash2, Users } from 'lucide-react';
 import {
-  useDeleteUserMutation,
-  useToggleUserStatusMutation,
-  useUsersQuery,
-} from '../../features/users/api/queries';
-import { getUserManagementErrorMessage } from '../../features/users/error';
-import {
   getUserDisplayName,
   getUserInitials,
+  getUserManagementErrorMessage,
   mapApiRoleToUIRole,
+  RoleBadge,
   type UserAccount,
-} from '../../features/users/model';
-import { getPLTADashboardPath, useActivePLTAId } from '../../features/plta/routing';
-import UserFormSheet from '../../features/users/components/UserFormSheet';
-import RoleBadge from '../../features/users/components/RoleBadge';
+  useDeleteUserMutation,
+  UserFormSheet,
+  useToggleUserStatusMutation,
+  useUsersQuery,
+} from '../../features/users';
+import { getPLTADashboardPath, useActivePLTAId } from '../../features/plta';
 import { useAuthStore } from '../../store/auth-store';
 import { useNotificationStore } from '../../store/notification-store';
 import UserTableSkeleton from '../../components/skeletons/UserTableSkeleton';
@@ -118,19 +116,19 @@ export default function UserManagement() {
       <div className="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
         <form onSubmit={applySearch} className="flex min-w-0 items-center gap-2 sm:w-80">
           <div className="relative flex min-w-0 flex-1 items-center">
-            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-slate-400" />
+            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-text-muted" />
             <input
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               maxLength={100}
               placeholder="Cari nama, username, atau email…"
-              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-white pr-3 pl-8.5 text-[12.5px] text-text-primary outline-none transition-[border-color,box-shadow] hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-slate-400"
+              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-surface-raised pr-3 pl-8.5 text-[12.5px] text-text-primary outline-none transition-[border-color,box-shadow] hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-text-placeholder"
             />
           </div>
           <button
             type="submit"
-            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-white px-3 text-[12.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-surface-raised px-3 text-[12.5px] font-semibold text-text-secondary transition-colors hover:bg-surface-base"
           >
             Cari
           </button>
@@ -140,7 +138,7 @@ export default function UserManagement() {
         )}
       </div>
 
-      <section className="flex flex-col overflow-clip rounded-md border border-border-subtle bg-white">
+      <section className="flex flex-col overflow-clip rounded-md border border-border-subtle bg-surface-raised">
         <RefetchBar isRefetching={usersQuery.isFetching && !usersQuery.isLoading} />
 
         <div className="flex h-9 w-full items-center gap-4 border-b border-border-subtle bg-surface-overlay px-5">
@@ -174,12 +172,12 @@ export default function UserManagement() {
             const isSelf = user.id === currentUser?.id;
 
             return (
-              <div key={user.id} className={`flex w-full items-center gap-4 border-b border-b-surface-overlay px-5 py-3.5 transition-colors hover:bg-slate-50/50 ${isSelf ? 'bg-surface-base' : ''}`}>
+              <div key={user.id} className={`flex w-full items-center gap-4 border-b border-b-surface-overlay px-5 py-3.5 transition-colors hover:bg-surface-base/50 ${isSelf ? 'bg-surface-base' : ''}`}>
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className={`flex size-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
                     isSelf
                       ? 'border-cyan-200 bg-cyan-100 text-cyan-700'
-                      : 'border-border-subtle bg-surface-overlay text-slate-600'
+                      : 'border-border-subtle bg-surface-overlay text-text-subtle'
                   }`}
                   >
                     {getUserInitials(user)}
@@ -188,7 +186,7 @@ export default function UserManagement() {
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-medium text-text-primary">{getUserDisplayName(user)}</span>
                       {isSelf && (
-                        <span className="inline-flex h-[19px] shrink-0 items-center rounded-[5px] bg-surface-overlay px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-600">
+                        <span className="inline-flex h-[19px] shrink-0 items-center rounded-[5px] bg-surface-overlay px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-text-subtle">
                           Akun Anda
                         </span>
                       )}
@@ -205,7 +203,7 @@ export default function UserManagement() {
                     title={isSelf ? 'Kelola akun sendiri melalui Profil Saya' : 'Ubah status pengguna'}
                     className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-medium text-text-secondary disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <span className={`size-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-slate-300'}`} />
+                    <span className={`size-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-disabled'}`} />
                     {user.isActive ? 'Aktif' : 'Nonaktif'}
                   </button>
                 </div>
@@ -213,7 +211,7 @@ export default function UserManagement() {
                   <button
                     type="button"
                     onClick={() => openEditSheet(user)}
-                    className="flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-white text-brand-primary-strong transition-colors hover:bg-cyan-50"
+                    className="flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-surface-raised text-brand-primary-strong transition-colors hover:bg-cyan-50"
                     title={isSelf ? 'Buka Profil Saya' : 'Edit pengguna'}
                   >
                     <Edit2 size={14} />
@@ -223,7 +221,7 @@ export default function UserManagement() {
                     disabled={deleteMutation.isPending || isSelf}
                     onClick={() => setUserToDelete(user)}
                     title={isSelf ? 'Akun sendiri tidak dapat dihapus' : 'Hapus pengguna'}
-                    className="flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-white text-status-danger transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-slate-300"
+                    className="flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-surface-raised text-status-danger transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-disabled"
                   >
                     <Trash2 size={14} />
                   </button>

@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { getPLTADashboardPath } from '../../features/plta/routing';
-import { usePlantCatalogQuery } from '../../features/plta/api/queries';
+import { getPLTADashboardPath, usePlantCatalogQuery } from '../../features/plta';
 import JavaMap from '../../components/map/JavaMap';
 import PageHeader from '../../components/ui/PageHeader';
 

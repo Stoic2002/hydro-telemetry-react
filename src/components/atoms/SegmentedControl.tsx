@@ -34,8 +34,8 @@ export default function SegmentedControl<T extends string | number>({
             onClick={() => onChange(option.value)}
             className={`flex h-9 cursor-pointer items-center whitespace-nowrap rounded-sm px-3.5 text-[12.5px] transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/30 ${
               isActive
-                ? 'border border-border-subtle bg-white font-semibold text-brand-primary-strong'
-                : 'border border-transparent font-medium text-slate-600 hover:text-text-primary'
+                ? 'border border-border-subtle bg-surface-raised font-semibold text-brand-primary-strong'
+                : 'border border-transparent font-medium text-text-subtle hover:text-text-primary'
             }`}
           >
             {option.label}

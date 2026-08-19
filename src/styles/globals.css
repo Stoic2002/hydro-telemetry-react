@@ -17,9 +17,24 @@
 
   /* Teks */
   --color-text-primary: #0f172a;
+  --color-text-strong: #1e293b;
   --color-text-secondary: #334155;
+  --color-text-subtle: #475569;
   --color-text-muted: #64748b;
   --color-text-placeholder: #94a3b8;
+
+  /*
+   * Permukaan gelap — tooltip grafik dan lapisan peredup di belakang overlay.
+   * Teks di atasnya memakai pasangannya sendiri: `text-muted` yang lolos kontras
+   * di atas putih justru gagal di atas permukaan ini.
+   */
+  --color-surface-inverse: #0f172a;
+  --color-border-inverse: #334155;
+  --color-text-on-inverse: #cbd5e1;
+  --color-text-on-inverse-muted: #94a3b8;
+
+  /* Kontrol nonaktif — teks, latar, dan jalur toggle */
+  --color-disabled: #cbd5e1;
 
   /* Brand */
   --color-brand-primary: #22d3ee;
@@ -42,11 +57,18 @@
   --color-zone-dam: #f59e0b;
   --color-zone-hilir: #34d399;
 
-  /* Seri grafik */
-  --color-chart-series-1: #22d3ee;
-  --color-chart-series-2: #a78bfa;
-  --color-chart-series-3: #34d399;
-  --color-chart-series-4: #fbbf24;
+  /* Seri grafik — urutan warna untuk parameter yang dipilih di Tren & Grafik */
+  --color-chart-series-1: #0891b2;
+  --color-chart-series-2: #2563eb;
+  --color-chart-series-3: #7c3aed;
+  --color-chart-series-4: #0e7490;
+  --color-chart-series-5: #d97706;
+  --color-chart-series-6: #059669;
+
+  /* Kerangka grafik — sumbu, garis bantu, dan garis rata-rata */
+  --color-chart-grid: #e2e8f0;
+  --color-chart-axis: #64748b;
+  --color-chart-reference: #94a3b8;
 
   /* Radius — kartu & field 10px, overlay 14px */
   --radius-sm: 6px;
@@ -118,35 +140,35 @@
 
 @layer components {
   .page-title {
-    @apply font-display text-[22px] font-bold leading-normal tracking-[-0.55px] text-slate-900;
+    @apply font-display text-[22px] font-bold leading-normal tracking-[-0.55px] text-text-primary;
   }
 
   .page-description {
-    @apply font-sans text-[13px] leading-5 text-slate-500;
+    @apply font-sans text-[13px] leading-5 text-text-muted;
   }
 
   .section-title {
-    @apply font-sans text-base font-semibold text-slate-900;
+    @apply font-sans text-base font-semibold text-text-primary;
   }
 
   .card-title {
-    @apply font-sans text-sm font-semibold text-slate-900;
+    @apply font-sans text-sm font-semibold text-text-primary;
   }
 
   .field-label {
-    @apply font-sans text-xs font-semibold text-slate-500;
+    @apply font-sans text-xs font-semibold text-text-muted;
   }
 
   .table-head-cell {
-    @apply font-sans text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500;
+    @apply font-sans text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted;
   }
 
   /* Nilai telemetri — angka selalu tabular, satuan selalu lebih redup */
   .metric-value {
-    @apply font-mono font-medium tabular-nums text-slate-900;
+    @apply font-mono font-medium tabular-nums text-text-primary;
   }
 
   .metric-unit {
-    @apply text-[0.8em] font-normal text-slate-400;
+    @apply text-[0.8em] font-normal text-text-muted;
   }
 }

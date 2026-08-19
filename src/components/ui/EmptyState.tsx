@@ -22,11 +22,11 @@ export default function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className={`flex flex-col items-center px-4.5 py-6.5 text-center ${className}`}>
-      <div className="flex size-11 items-center justify-center rounded-full bg-surface-overlay text-slate-400">
+      <div className="flex size-11 items-center justify-center rounded-full bg-surface-overlay text-text-muted">
         {icon}
       </div>
-      <p className="mt-3 text-[13px] font-semibold text-slate-900">{title}</p>
-      <p className="mt-1 max-w-xs text-[11.5px] leading-[1.6] text-slate-500">{description}</p>
+      <p className="mt-3 text-[13px] font-semibold text-text-primary">{title}</p>
+      <p className="mt-1 max-w-xs text-[11.5px] leading-[1.6] text-text-muted">{description}</p>
       {action && <div className="mt-3">{action}</div>}
     </div>
   );

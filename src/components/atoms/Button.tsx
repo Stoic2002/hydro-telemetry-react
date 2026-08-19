@@ -27,9 +27,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
     primary:
       'border-brand-primary-strong bg-brand-primary-strong text-white hover:border-brand-primary-pressed hover:bg-brand-primary-pressed focus-visible:ring-brand-primary-strong/40',
     secondary:
-      'border-border-subtle bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 focus-visible:ring-slate-300/60',
+      'border-border-subtle bg-surface-raised text-text-secondary hover:border-border-strong hover:bg-surface-base focus-visible:ring-border-strong/60',
     ghost:
-      'border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-300/60',
+      'border-transparent bg-transparent text-text-subtle hover:bg-surface-overlay hover:text-text-primary focus-visible:ring-border-strong/60',
     danger:
       'border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 focus-visible:ring-red-500/40',
     success:

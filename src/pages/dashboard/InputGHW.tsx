@@ -12,12 +12,11 @@ import {
 } from 'lucide-react';
 import Badge from '../../components/atoms/Badge';
 import Select from '../../components/atoms/Select';
-import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import { PlantSwitcher, useActivePLTA } from '../../features/plta';
 import PageHeader from '../../components/ui/PageHeader';
 import EmptyState from '../../components/ui/EmptyState';
-import { useActivePLTA } from '../../features/plta/api/queries';
 import { useUploadElevationExcelMutation } from '../../features/uploads';
-import type { UploadHistoryItem } from '../../features/uploads/model';
+import type { UploadHistoryItem } from '../../features/uploads';
 import { formatDateWIB } from '../../shared/lib/date';
 import { useNotificationStore } from '../../store/notification-store';
 
@@ -128,10 +127,10 @@ function UploadCard({
                   if (file) onSelect(file);
                 }}
               />
-              <UploadCloud size={26} className="text-slate-400" />
+              <UploadCloud size={26} className="text-text-muted" />
               <p className="mt-2 text-[13px] font-semibold text-text-secondary">Tarik file Excel ke area ini</p>
               <p className="mt-1 text-xs text-text-muted">atau klik untuk memilih file</p>
-              <span className="mt-2.5 rounded-full border border-border-subtle bg-white px-2.5 py-[3px] font-mono text-[10.5px] font-medium text-text-muted">
+              <span className="mt-2.5 rounded-full border border-border-subtle bg-surface-raised px-2.5 py-[3px] font-mono text-[10.5px] font-medium text-text-muted">
                 .xlsx · maksimum 5 MB
               </span>
             </div>
@@ -160,7 +159,7 @@ function UploadCard({
                       onClick={clearSelection}
                       disabled={isUploading}
                       title="Hapus file"
-                      className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted hover:bg-white hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted hover:bg-surface-raised hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -171,7 +170,7 @@ function UploadCard({
                   type="button"
                   onClick={onUpload}
                   disabled={Boolean(selection.error) || !Number.isInteger(year) || isUploading}
-                  className="mt-2.5 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand-primary-strong text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="mt-2.5 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand-primary-strong text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-disabled"
                 >
                   {isUploading && <LoaderCircle size={16} className="animate-spin" />}
                   {isUploading ? 'Sedang mengunggah...' : 'Unggah ke Server'}
@@ -200,7 +199,7 @@ function UploadCard({
             disabled={isUploading}
             onChange={(event) => onYearChange(Number(event.target.value))}
             options={YEAR_OPTIONS}
-            controlClassName="bg-white"
+            controlClassName="bg-surface-raised"
           />
 
           <label className="flex cursor-pointer items-start gap-2.5">
@@ -210,7 +209,7 @@ function UploadCard({
                 checked={publish}
                 disabled={isUploading}
                 onChange={(event) => onPublishChange(event.target.checked)}
-                className="peer absolute inset-0 size-4 shrink-0 cursor-pointer appearance-none rounded-[4px] border border-slate-300 bg-white checked:border-brand-primary-strong checked:bg-brand-primary-strong disabled:cursor-not-allowed disabled:opacity-60"
+                className="peer absolute inset-0 size-4 shrink-0 cursor-pointer appearance-none rounded-[4px] border border-border-strong bg-surface-raised checked:border-brand-primary-strong checked:bg-brand-primary-strong disabled:cursor-not-allowed disabled:opacity-60"
               />
               <Check size={11} strokeWidth={3} className="pointer-events-none relative text-white opacity-0 peer-checked:opacity-100" />
             </span>
@@ -224,7 +223,7 @@ function UploadCard({
           <a
             href={TEMPLATE_URL}
             download="Template_Upload_PLTA_Standar.xlsx"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-sm border border-border-subtle bg-white text-xs font-semibold text-text-secondary transition-colors hover:bg-slate-50"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-sm border border-border-subtle bg-surface-raised text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-base"
           >
             <Download size={14} />
             Unduh Template
@@ -237,7 +236,7 @@ function UploadCard({
 
 export default function InputGHW() {
   const { pltaId, plta } = useActivePLTA();
-  const { addToast } = useNotificationStore();
+  const addToast = useNotificationStore((state) => state.addToast);
   const elevationMutation = useUploadElevationExcelMutation();
   const [selection, setSelection] = useState<SelectedWorkbook | null>(null);
   const [year, setYear] = useState(CURRENT_YEAR);
@@ -299,7 +298,7 @@ export default function InputGHW() {
 
       <div>
         <h2 className="card-title">Riwayat sesi</h2>
-        <section className="mt-2.5 w-full overflow-hidden rounded-md border border-border-subtle bg-white">
+        <section className="mt-2.5 w-full overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
           {uploadHistory.length === 0 ? (
             <EmptyState
               icon={<FileSpreadsheet size={19} />}

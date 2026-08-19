@@ -9,10 +9,15 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-staging
 coverage
 dist-ssr
 outputs/
 *.local
+
+# Alamat host internal - dibuat manual di server, tidak dipublikasikan
+.env.staging
+.env.production
 
 # Editor directories and files
 .vscode/*

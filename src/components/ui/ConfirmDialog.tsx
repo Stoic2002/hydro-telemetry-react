@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Button from '../atoms/Button';
+import { useFocusTrap } from '../../shared/lib/useFocusTrap';
 
 type ConfirmDialogVariant = 'danger' | 'warning' | 'primary';
 
@@ -53,55 +54,19 @@ export default function ConfirmDialog({
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const styles = variantStyles[variant];
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const previouslyFocusedElement = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    cancelButtonRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isConfirming) {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key !== 'Tab') return;
-
-      const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-
-      if (!focusableElements?.length) return;
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-
-      if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-      } else if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previouslyFocusedElement?.focus();
-    };
-  }, [isConfirming, isOpen, onClose]);
+  useFocusTrap({
+    isOpen,
+    containerRef: dialogRef,
+    initialFocusRef: cancelButtonRef,
+    canDismiss: !isConfirming,
+    onDismiss: onClose,
+  });
 
   if (!isOpen) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/32 p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-surface-inverse/32 p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isConfirming) onClose();
       }}
@@ -112,7 +77,7 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="w-full max-w-[360px] rounded-lg border border-border-subtle bg-white p-[22px] shadow-dialog"
+        className="w-full max-w-[360px] rounded-lg border border-border-subtle bg-surface-raised p-[22px] shadow-dialog"
       >
         <div className={`flex size-11 items-center justify-center rounded-full ${styles.icon}`}>
           {icon ?? <span aria-hidden="true" className="font-mono text-[18px] font-semibold leading-none">!</span>}

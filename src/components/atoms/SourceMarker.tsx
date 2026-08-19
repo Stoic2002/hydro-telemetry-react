@@ -8,16 +8,16 @@ const SHAPE_CLASSES: Record<SourceMarkerType, string> = {
   api: 'size-[7px] rounded-full bg-brand-primary-strong',
   formula: 'size-[7px] rounded-full border-[1.5px] border-violet-600',
   input: 'size-[7px] bg-amber-600',
-  constant: 'size-[7px] rotate-45 bg-slate-500',
-  unavailable: 'h-[1.5px] w-[7px] bg-slate-400',
+  constant: 'size-[7px] rotate-45 bg-text-muted',
+  unavailable: 'h-[1.5px] w-[7px] bg-text-placeholder',
 };
 
 const LABEL_CLASSES: Record<SourceMarkerType, string> = {
   api: 'text-cyan-700',
   formula: 'text-violet-700',
   input: 'text-amber-700',
-  constant: 'text-slate-600',
-  unavailable: 'text-slate-400',
+  constant: 'text-text-subtle',
+  unavailable: 'text-text-muted',
 };
 
 const SOURCE_MARKER_LABEL: Record<SourceMarkerType, string> = {

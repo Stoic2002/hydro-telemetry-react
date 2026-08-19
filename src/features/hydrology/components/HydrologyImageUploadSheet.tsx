@@ -128,22 +128,22 @@ export default function HydrologyImageUploadSheet({
       >
         <div className="border-b border-surface-overlay pb-5">
           <p className="text-xs font-medium text-cyan-700">Target gambar</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">
+          <p className="mt-1 text-sm font-semibold text-text-strong">
             {imageLabel}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-text-muted">
             {monthLabel} {year} · PLTA {plantName}
           </p>
         </div>
 
-        <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-8 text-center transition-colors hover:border-cyan-400 hover:bg-cyan-50/40">
-          <span className="flex size-11 items-center justify-center rounded-full bg-white text-cyan-600 ring-1 ring-slate-200">
+        <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-border-strong bg-surface-base/70 px-5 py-8 text-center transition-colors hover:border-cyan-400 hover:bg-cyan-50/40">
+          <span className="flex size-11 items-center justify-center rounded-full bg-surface-raised text-cyan-600 ring-1 ring-border-subtle">
             <ImagePlus size={21} />
           </span>
-          <span className="text-sm font-semibold text-slate-700">
+          <span className="text-sm font-semibold text-text-secondary">
             {file ? file.name : 'Pilih gambar BMKG'}
           </span>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-text-muted">
             PNG, JPG, atau JPEG · maksimal 5 MB
           </span>
           <input

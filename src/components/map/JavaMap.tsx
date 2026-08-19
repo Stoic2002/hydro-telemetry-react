@@ -7,14 +7,24 @@ import type {
   Geometry,
   GeoJsonProperties,
   LineString,
-  Position,
 } from 'geojson';
-import { usePlantCatalogQuery } from '../../features/plta/api/queries';
-import { getPLTAErrorMessage } from '../../features/plta/error';
-import { getPlantDisplayName } from '../../features/plta/presentation';
+import { getPLTAErrorMessage, getPlantDisplayName, usePlantCatalogQuery } from '../../features/plta';
 import { formatMetric } from '../../shared/utils/number';
+import { formatTimeWIB } from '../../shared/lib/date';
 import MapSkeleton from '../skeletons/MapSkeleton';
 import Badge from '../atoms/Badge';
+import { getLabelCoordinate } from './label-placement';
+import {
+  CENTRAL_JAVA_RADAR_TILES,
+  RAIN_VIEWER_TILE_HOST,
+  tileXToLongitude,
+  tileYToLatitude,
+} from './radar-tiles';
+import {
+  useMapLayersQuery,
+  useRainRadarFrameQuery,
+  type RiverProperties,
+} from './queries';
 
 interface JavaMapProps {
   onPLTAClick: (pltaId: string) => void;
@@ -42,77 +52,6 @@ const DEFAULT_PROJECTION = {
 
 const MAP_VIEWBOX = { width: 800, height: 600 } as const;
 
-const MAP_LAYER_URLS = {
-  province: '/indonesia-provinces.json',
-  regencies: '/central-java-regencies.geojson',
-  rivers: '/central-java-rivers.geojson',
-} as const;
-
-const RAIN_VIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json';
-const RAIN_VIEWER_TILE_HOST = 'https://tilecache.rainviewer.com';
-const RAIN_RADAR_ZOOM = 7;
-const CENTRAL_JAVA_RADAR_BOUNDS = {
-  west: 108,
-  east: 112.2,
-  north: -5.4,
-  south: -8.6,
-} as const;
-
-interface RainViewerFrame {
-  time: number;
-  path: string;
-}
-
-interface RainViewerWeatherMaps {
-  radar?: {
-    past?: RainViewerFrame[];
-  };
-}
-
-interface RadarTile {
-  x: number;
-  y: number;
-  zoom: number;
-}
-
-function longitudeToTileX(longitude: number, zoom: number) {
-  return Math.floor(((longitude + 180) / 360) * (2 ** zoom));
-}
-
-function latitudeToTileY(latitude: number, zoom: number) {
-  const latitudeRadians = latitude * Math.PI / 180;
-  return Math.floor(
-    ((1 - Math.asinh(Math.tan(latitudeRadians)) / Math.PI) / 2) * (2 ** zoom),
-  );
-}
-
-function tileXToLongitude(x: number, zoom: number) {
-  return (x / (2 ** zoom)) * 360 - 180;
-}
-
-function tileYToLatitude(y: number, zoom: number) {
-  const mercatorY = Math.PI * (1 - (2 * y) / (2 ** zoom));
-  return Math.atan(Math.sinh(mercatorY)) * 180 / Math.PI;
-}
-
-function createRadarTiles(): RadarTile[] {
-  const firstX = longitudeToTileX(CENTRAL_JAVA_RADAR_BOUNDS.west, RAIN_RADAR_ZOOM);
-  const lastX = longitudeToTileX(CENTRAL_JAVA_RADAR_BOUNDS.east, RAIN_RADAR_ZOOM);
-  const firstY = latitudeToTileY(CENTRAL_JAVA_RADAR_BOUNDS.north, RAIN_RADAR_ZOOM);
-  const lastY = latitudeToTileY(CENTRAL_JAVA_RADAR_BOUNDS.south, RAIN_RADAR_ZOOM);
-  const tiles: RadarTile[] = [];
-
-  for (let x = firstX; x <= lastX; x += 1) {
-    for (let y = firstY; y <= lastY; y += 1) {
-      tiles.push({ x, y, zoom: RAIN_RADAR_ZOOM });
-    }
-  }
-
-  return tiles;
-}
-
-const CENTRAL_JAVA_RADAR_TILES = createRadarTiles();
-
 const CITY_LABEL_OFFSETS: Record<string, { x: number; y: number }> = {
   'Kota Magelang': { x: -36, y: 11 },
   'Kota Pekalongan': { x: -4, y: -15 },
@@ -121,73 +60,6 @@ const CITY_LABEL_OFFSETS: Record<string, { x: number; y: number }> = {
   'Kota Surakarta': { x: 15, y: -10 },
   'Kota Tegal': { x: -14, y: -13 },
 };
-
-function getRingArea2(ring: Position[]) {
-  let area2 = 0;
-
-  for (let index = 0; index < ring.length - 1; index += 1) {
-    const current = ring[index];
-    const next = ring[index + 1];
-    area2 += current[0] * next[1] - next[0] * current[1];
-  }
-
-  return area2;
-}
-
-function getLabelCoordinate(geometry: Geometry): [number, number] | null {
-  const outerRings = geometry.type === 'Polygon'
-    ? geometry.coordinates.slice(0, 1)
-    : geometry.type === 'MultiPolygon'
-      ? geometry.coordinates.map((polygon) => polygon[0])
-      : [];
-  const ring = outerRings.reduce<Position[] | null>((largest, candidate) => {
-    if (!candidate?.length) return largest;
-    if (!largest) return candidate;
-    return Math.abs(getRingArea2(candidate)) > Math.abs(getRingArea2(largest))
-      ? candidate
-      : largest;
-  }, null);
-
-  if (!ring?.length) return null;
-
-  const area2 = getRingArea2(ring);
-  if (Math.abs(area2) < Number.EPSILON) {
-    const longitude = ring.reduce((sum, point) => sum + point[0], 0) / ring.length;
-    const latitude = ring.reduce((sum, point) => sum + point[1], 0) / ring.length;
-    return [longitude, latitude];
-  }
-
-  let longitudeSum = 0;
-  let latitudeSum = 0;
-
-  for (let index = 0; index < ring.length - 1; index += 1) {
-    const current = ring[index];
-    const next = ring[index + 1];
-    const crossProduct = current[0] * next[1] - next[0] * current[1];
-    longitudeSum += (current[0] + next[0]) * crossProduct;
-    latitudeSum += (current[1] + next[1]) * crossProduct;
-  }
-
-  return [longitudeSum / (3 * area2), latitudeSum / (3 * area2)];
-}
-
-interface RiverProperties {
-  hyrivId: number;
-  nextDown: number;
-  mainRiver: number;
-  lengthKm: number;
-  catchmentKm2: number;
-  upstreamKm2: number;
-  averageDischargeM3s: number;
-  strahlerOrder: number;
-  flowOrder: number;
-}
-
-interface MapLayers {
-  province: FeatureCollection<Geometry, GeoJsonProperties>;
-  regencies: FeatureCollection<Geometry, GeoJsonProperties>;
-  rivers: FeatureCollection<LineString, RiverProperties>;
-}
 
 function CentralJavaClip({ geography }: { geography: Feature<Geometry, GeoJsonProperties> }) {
   const { path } = useMapContext();
@@ -378,78 +250,18 @@ export default function JavaMap({
   const plantsQuery = usePlantCatalogQuery(!customMarkers);
   const pltaList = plantsQuery.data ?? [];
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [mapLayers, setMapLayers] = useState<MapLayers | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const mapLayersQuery = useMapLayersQuery();
+  const mapLayers = mapLayersQuery.data ?? null;
   const [mapSize, setMapSize] = useState<{ width: number; height: number }>(MAP_VIEWBOX);
-  const [radarFrame, setRadarFrame] = useState<RainViewerFrame | null>(null);
-  const [radarStatus, setRadarStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const radarQuery = useRainRadarFrameQuery(showPrecipitation);
+  const radarFrame = radarQuery.data ?? null;
+  const radarStatus = radarQuery.isPending
+    ? (radarQuery.fetchStatus === 'idle' ? 'idle' : 'loading')
+    : radarQuery.isError ? 'error' : 'ready';
   const [isPrecipitationVisible, setIsPrecipitationVisible] = useState(showPrecipitation);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const clipPathId = `central-java-map-${useId().replace(/:/g, '')}`;
   const isMapReady = Boolean(mapLayers && (customMarkers || !plantsQuery.isPending));
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const loadLayer = async <T extends object>(url: string): Promise<T> => {
-      const response = await fetch(url, { signal: controller.signal });
-      if (!response.ok) throw new Error('Gagal memuat data peta');
-      return response.json() as Promise<T>;
-    };
-
-    Promise.all([
-      loadLayer<MapLayers['province']>(MAP_LAYER_URLS.province),
-      loadLayer<MapLayers['regencies']>(MAP_LAYER_URLS.regencies),
-      loadLayer<MapLayers['rivers']>(MAP_LAYER_URLS.rivers),
-    ])
-      .then(([province, regencies, rivers]) => {
-        setMapLayers({ province, regencies, rivers });
-      })
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        setError(err instanceof Error ? err.message : 'Gagal memuat data peta');
-      });
-
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (!showPrecipitation) return undefined;
-
-    const controller = new AbortController();
-
-    const loadLatestRadar = async () => {
-      setRadarStatus((current) => (current === 'ready' ? current : 'loading'));
-
-      try {
-        const response = await fetch(RAIN_VIEWER_API_URL, {
-          signal: controller.signal,
-          cache: 'no-store',
-        });
-        if (!response.ok) throw new Error('Radar presipitasi tidak tersedia');
-
-        const weatherMaps = await response.json() as RainViewerWeatherMaps;
-        const latestFrame = weatherMaps.radar?.past?.at(-1);
-        if (!latestFrame || !/^\/v2\/radar\/[a-f0-9]+$/.test(latestFrame.path)) {
-          throw new Error('Data radar presipitasi tidak valid');
-        }
-
-        setRadarFrame(latestFrame);
-        setRadarStatus('ready');
-      } catch (radarError: unknown) {
-        if (radarError instanceof DOMException && radarError.name === 'AbortError') return;
-        setRadarStatus('error');
-      }
-    };
-
-    void loadLatestRadar();
-    const refreshInterval = window.setInterval(() => void loadLatestRadar(), 10 * 60 * 1000);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(refreshInterval);
-    };
-  }, [showPrecipitation]);
 
   useEffect(() => {
     const container = mapContainerRef.current;
@@ -480,21 +292,25 @@ export default function JavaMap({
   const hoveredPLTA = !customMarkers && hoveredId ? pltaList.find((p) => p.id === hoveredId) : null;
   const hoveredCustom = customMarkers && hoveredId ? customMarkers.find((m) => m.id === hoveredId) : null;
 
-  if (error || (!customMarkers && plantsQuery.isError)) {
+  const hasPlantError = !customMarkers && plantsQuery.isError;
+
+  if (mapLayersQuery.isError || hasPlantError) {
+    const failingQuery = mapLayersQuery.isError ? mapLayersQuery : plantsQuery;
+
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 text-center">
         <p className="text-sm font-medium text-red-600">
-          {error ?? getPLTAErrorMessage(plantsQuery.error)}
+          {mapLayersQuery.isError
+            ? 'Data batas wilayah peta gagal dimuat.'
+            : getPLTAErrorMessage(plantsQuery.error)}
         </p>
-        {!customMarkers && plantsQuery.isError && (
-          <button
-            type="button"
-            onClick={() => void plantsQuery.refetch()}
-            className="cursor-pointer rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
-          >
-            Muat ulang data PLTA
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => void failingQuery.refetch()}
+          className="cursor-pointer rounded-lg border border-red-200 bg-surface-raised px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+        >
+          {mapLayersQuery.isError ? 'Muat ulang peta' : 'Muat ulang data PLTA'}
+        </button>
       </div>
     );
   }
@@ -630,7 +446,7 @@ export default function JavaMap({
                 <text
                   textAnchor="middle"
                   y={isHovered ? -26 : -16}
-                  className={`text-[10px] font-bold ${isHovered ? 'fill-slate-900 opacity-100' : 'fill-slate-500 opacity-70'} transition-all font-sans`}
+                  className={`text-[10px] font-bold ${isHovered ? 'fill-text-primary opacity-100' : 'fill-text-muted opacity-70'} transition-all font-sans`}
                 >
                   {getPlantDisplayName(plta)}
                 </text>
@@ -662,7 +478,7 @@ export default function JavaMap({
               <text
                 textAnchor="middle"
                 y={hoveredId === m.id ? -22 : -12}
-                className={`text-[9px] font-bold ${hoveredId === m.id ? 'fill-slate-900' : 'fill-slate-500'} transition-all font-sans`}
+                className={`text-[9px] font-bold ${hoveredId === m.id ? 'fill-text-primary' : 'fill-text-muted'} transition-all font-sans`}
               >
                 {m.name}
               </text>
@@ -672,7 +488,7 @@ export default function JavaMap({
       </ComposableMap>
 
       {showPrecipitation && (
-        <div className="absolute right-3 top-3 z-10 w-[212px] max-w-[calc(100%-1.5rem)] rounded-md border border-border-subtle bg-white/95 px-3.5 py-3 shadow-[0_6px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:right-4 sm:top-4">
+        <div className="absolute right-3 top-3 z-10 w-[212px] max-w-[calc(100%-1.5rem)] rounded-md border border-border-subtle bg-surface-raised/95 px-3.5 py-3 shadow-[0_6px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:right-4 sm:top-4">
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-text-primary">
               <CloudRain size={14} className="shrink-0 text-text-muted" aria-hidden="true" />
@@ -685,11 +501,11 @@ export default function JavaMap({
               aria-label={isPrecipitationVisible ? 'Matikan radar hujan' : 'Nyalakan radar hujan'}
               onClick={() => setIsPrecipitationVisible((current) => !current)}
               className={`relative h-[18px] w-8 shrink-0 cursor-pointer rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/40 ${
-                isPrecipitationVisible ? 'bg-brand-primary-strong' : 'bg-slate-200'
+                isPrecipitationVisible ? 'bg-brand-primary-strong' : 'bg-border-subtle'
               }`}
             >
               <span
-                className={`absolute left-0.5 top-0.5 size-3.5 rounded-full bg-white transition-transform ${
+                className={`absolute left-0.5 top-0.5 size-3.5 rounded-full bg-surface-raised transition-transform ${
                   isPrecipitationVisible ? 'translate-x-[14px]' : 'translate-x-0'
                 }`}
               />
@@ -702,11 +518,7 @@ export default function JavaMap({
                 <span>Frame terakhir</span>
                 {radarStatus === 'ready' && radarFrame && (
                   <span className="font-mono text-[11px] tabular-nums text-text-primary">
-                    {new Intl.DateTimeFormat('id-ID', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      timeZone: 'Asia/Jakarta',
-                    }).format(new Date(radarFrame.time * 1000))} WIB
+                    {formatTimeWIB(radarFrame.time * 1000)} WIB
                   </span>
                 )}
                 {radarStatus === 'error' && <span className="text-status-warning">Tidak tersedia</span>}
@@ -729,25 +541,25 @@ export default function JavaMap({
 
       {/* Info Panel Overlay (PLTA) */}
       {hoveredPLTA && (
-        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md border border-border-subtle bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.12)] animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[250px] sm:p-4">
+        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md border border-border-subtle bg-surface-raised p-3 shadow-[0_12px_32px_rgba(15,23,42,0.12)] animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[250px] sm:p-4">
           <div className="mb-3 flex items-start justify-between gap-3">
-            <h4 className="min-w-0 font-sans text-sm font-bold text-slate-800">{hoveredPLTA.name}</h4>
+            <h4 className="min-w-0 font-sans text-sm font-bold text-text-strong">{hoveredPLTA.name}</h4>
             <Badge tone={hoveredPLTA.isActive ? 'green' : 'slate'}>
               {hoveredPLTA.isActive ? 'Aktif' : 'Tidak aktif'}
             </Badge>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-500">Kode</span>
-              <span className="text-sm font-mono font-bold text-slate-800">{hoveredPLTA.code}</span>
+              <span className="text-xs text-text-muted">Kode</span>
+              <span className="text-sm font-mono font-bold text-text-strong">{hoveredPLTA.code}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-500">Kapasitas</span>
-              <span className="text-sm font-mono font-bold text-slate-800">{formatMetric(hoveredPLTA.capacityMw, 1)} MW</span>
+              <span className="text-xs text-text-muted">Kapasitas</span>
+              <span className="text-sm font-mono font-bold text-text-strong">{formatMetric(hoveredPLTA.capacityMw, 1)} MW</span>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-500">Koordinat</span>
-              <span className="text-right text-[11px] font-mono font-semibold text-slate-700">
+              <span className="text-xs text-text-muted">Koordinat</span>
+              <span className="text-right text-[11px] font-mono font-semibold text-text-secondary">
                 {hoveredPLTA.latitude?.toFixed(4)}, {hoveredPLTA.longitude?.toFixed(4)}
               </span>
             </div>
@@ -760,19 +572,19 @@ export default function JavaMap({
 
       {/* Info Panel Overlay (Custom AWLR/Rain Sensors) */}
       {hoveredCustom && (
-        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md border border-border-subtle bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.12)] animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[180px]">
-          <h4 className="font-bold text-slate-800 text-sm mb-1">{hoveredCustom.name}</h4>
+        <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md border border-border-subtle bg-surface-raised p-3 shadow-[0_12px_32px_rgba(15,23,42,0.12)] animate-in fade-in zoom-in-95 duration-200 sm:inset-x-auto sm:left-4 sm:top-4 sm:min-w-[180px]">
+          <h4 className="font-bold text-text-strong text-sm mb-1">{hoveredCustom.name}</h4>
           <p className="text-xs font-mono font-bold text-brand-primary-strong">{hoveredCustom.valueLabel}</p>
         </div>
       )}
 
       {!customMarkers && pltaList.length === 0 && (
-        <div className="absolute inset-x-4 top-4 rounded-xl border border-slate-200 bg-white/95 px-4 py-3 text-center text-sm text-slate-500 backdrop-blur-sm">
+        <div className="absolute inset-x-4 top-4 rounded-xl border border-border-subtle bg-surface-raised/95 px-4 py-3 text-center text-sm text-text-muted backdrop-blur-sm">
           Belum ada PLTA yang dapat ditampilkan pada peta.
         </div>
       )}
       
-      <div className="absolute bottom-3 right-3 flex max-w-[calc(100%-1.5rem)] min-w-[150px] flex-col gap-2 rounded-md border border-border-subtle bg-white/95 px-3 py-2.5 shadow-[0_6px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:bottom-4 sm:right-4 sm:min-w-[212px] sm:px-3.5">
+      <div className="absolute bottom-3 right-3 flex max-w-[calc(100%-1.5rem)] min-w-[150px] flex-col gap-2 rounded-md border border-border-subtle bg-surface-raised/95 px-3 py-2.5 shadow-[0_6px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:bottom-4 sm:right-4 sm:min-w-[212px] sm:px-3.5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">Legenda</span>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
@@ -780,7 +592,7 @@ export default function JavaMap({
             <span className="text-xs text-text-secondary">Jawa Tengah</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3.5 shrink-0 border-t border-dashed border-slate-400"></div>
+            <div className="w-3.5 shrink-0 border-t border-dashed border-text-placeholder"></div>
             <span className="text-xs text-text-secondary">Batas Kab/Kota</span>
           </div>
           <div className="flex items-center gap-2">

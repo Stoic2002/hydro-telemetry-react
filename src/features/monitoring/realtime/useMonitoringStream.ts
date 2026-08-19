@@ -6,6 +6,7 @@ import {
   subscribeToAuthSession,
 } from '../../../api/http';
 import { buildApiUrl } from '../../../api/http/url';
+import { reportError } from '../../../shared/lib/report-error';
 import {
   mapMonitoringParameterLatest,
   mapPLTALatestMonitoring,
@@ -31,11 +32,22 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
 const MAX_RECONNECT_ATTEMPTS = 8;
 const STABLE_CONNECTION_MS = 10_000;
 
+/**
+ * Socket bisa tetap terbuka sementara backend berhenti mengirim data, dan
+ * operator akan melihat angka lama tanpa tanda apa pun. Ambang ini sengaja
+ * longgar karena kadensi kirim backend belum dipastikan; sesuaikan lewat
+ * `staleAfterMs` bila intervalnya sudah diketahui.
+ */
+const DEFAULT_STALE_DATA_MS = 5 * 60 * 1_000;
+const STALE_DATA_CLOSE_CODE = 4000;
+
 interface UseMonitoringStreamOptions {
   scope: 'plta' | 'river-basin';
   id: string;
   enabled?: boolean;
   bootstrapLatest?: boolean;
+  /** Diam selama ini dianggap koneksi mati diam-diam, lalu dipaksa reconnect. */
+  staleAfterMs?: number;
 }
 
 interface MonitoringStreamState {
@@ -173,6 +185,7 @@ export function useMonitoringStream({
   id,
   enabled = true,
   bootstrapLatest = true,
+  staleAfterMs = DEFAULT_STALE_DATA_MS,
 }: UseMonitoringStreamOptions): MonitoringStreamState {
   const queryClient = useQueryClient();
   const pltaQuery = usePLTALatestQuery(
@@ -226,13 +239,33 @@ export function useMonitoringStream({
     let disposed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let stableConnectionTimer: ReturnType<typeof setTimeout> | null = null;
+    let staleDataTimer: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
 
     const clearTimers = () => {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (stableConnectionTimer) clearTimeout(stableConnectionTimer);
+      if (staleDataTimer) clearTimeout(staleDataTimer);
       reconnectTimer = null;
       stableConnectionTimer = null;
+      staleDataTimer = null;
+    };
+
+    const armStaleWatchdog = () => {
+      if (staleDataTimer) clearTimeout(staleDataTimer);
+
+      staleDataTimer = setTimeout(() => {
+        if (disposed || !socket) return;
+
+        reportError(
+          new Error('Koneksi monitoring realtime terbuka tetapi berhenti mengirim data'),
+          { scope: 'realtime', pltaScope: scope, id, silentForMs: staleAfterMs },
+        );
+        setError('Data realtime berhenti diperbarui. Menyambungkan ulang.');
+        // Penutupan ini masuk ke handler close biasa, jadi alur reconnect,
+        // backoff, dan batas percobaannya sama seperti putus koneksi lain.
+        socket.close(STALE_DATA_CLOSE_CODE, 'Stale monitoring stream');
+      }, staleAfterMs);
     };
 
     const updateCache = (snapshots: PLTALatestMonitoring[]) => {
@@ -257,6 +290,10 @@ export function useMonitoringStream({
       if (disposed) return;
 
       if (attempts >= MAX_RECONNECT_ATTEMPTS) {
+        reportError(
+          new Error('Koneksi monitoring realtime menyerah setelah batas percobaan'),
+          { scope: 'realtime', pltaScope: scope, id, attempts },
+        );
         setStatus('error');
         setError('Koneksi monitoring gagal dipulihkan setelah beberapa percobaan');
         return;
@@ -305,6 +342,7 @@ export function useMonitoringStream({
         if (disposed) return;
         setStatus('open');
         setError(null);
+        armStaleWatchdog();
         stableConnectionTimer = setTimeout(() => {
           attempts = 0;
           setReconnectAttempt(0);
@@ -317,6 +355,10 @@ export function useMonitoringStream({
           .then((snapshots) => {
             if (disposed) return;
             if (!snapshots) {
+              reportError(
+                new Error('Pesan monitoring realtime tidak sesuai kontrak'),
+                { scope: 'realtime', pltaScope: scope, id },
+              );
               setError('Pesan monitoring realtime tidak sesuai kontrak');
               return;
             }
@@ -324,8 +366,10 @@ export function useMonitoringStream({
             updateCache(snapshots);
             setLastMessageAt(new Date());
             setError(null);
+            armStaleWatchdog();
           })
-          .catch(() => {
+          .catch((messageError: unknown) => {
+            reportError(messageError, { scope: 'realtime', pltaScope: scope, id });
             if (!disposed) {
               setError('Pesan monitoring realtime tidak dapat dibaca');
             }
@@ -339,7 +383,9 @@ export function useMonitoringStream({
       socket.addEventListener('close', (event) => {
         if (disposed) return;
         if (stableConnectionTimer) clearTimeout(stableConnectionTimer);
+        if (staleDataTimer) clearTimeout(staleDataTimer);
         stableConnectionTimer = null;
+        staleDataTimer = null;
 
         if (event.code === 1000) {
           setStatus('closed');
@@ -375,6 +421,7 @@ export function useMonitoringStream({
     queryClient,
     queryKey,
     scope,
+    staleAfterMs,
   ]);
 
   const hasActiveScope = enabled && Boolean(id);

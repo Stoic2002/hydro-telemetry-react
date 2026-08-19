@@ -7,7 +7,7 @@ const TONE_CLASSES: Record<BadgeTone, string> = {
   amber: 'bg-amber-100 text-amber-700',
   green: 'bg-green-100 text-green-700',
   red: 'bg-red-100 text-red-700',
-  slate: 'bg-surface-overlay text-slate-600',
+  slate: 'bg-surface-overlay text-text-subtle',
 };
 
 const SPINNER_CLASSES: Record<BadgeTone, string> = {
@@ -15,7 +15,7 @@ const SPINNER_CLASSES: Record<BadgeTone, string> = {
   amber: 'border-amber-700/30 border-t-amber-700',
   green: 'border-green-700/30 border-t-green-700',
   red: 'border-red-700/30 border-t-red-700',
-  slate: 'border-slate-600/30 border-t-slate-600',
+  slate: 'border-text-subtle/30 border-t-text-subtle',
 };
 
 interface BadgeProps {

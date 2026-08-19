@@ -18,5 +18,11 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Sebagian besar file memakai kutip tunggal; DashboardLayout sempat
+      // menyimpang dan tidak ada yang menahannya.
+      quotes: ['error', 'single', { avoidEscape: true }],
+      'jsx-quotes': ['error', 'prefer-double'],
+    },
   },
 ])

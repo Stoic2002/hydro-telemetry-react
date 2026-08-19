@@ -31,18 +31,36 @@ Aplikasi development akan tersedia pada URL yang dicetak Vite. Ubah
 
 | Variable | Wajib | Default | Keterangan |
 | --- | --- | --- | --- |
-| `VITE_API_BASE_URL` | Tidak | `/api` | Base URL backend, dapat berupa path relatif atau URL HTTP(S) |
+| `VITE_API_BASE_URL` | Tidak | `/` | Base URL backend. **Host saja, tanpa `/api/v1`** |
+| `VITE_ERROR_REPORT_URL` | Tidak | kosong | Endpoint kolektor error internal. Kosong berarti laporan hanya disimpan di memori browser |
+| `VITE_RAINVIEWER_API_URL` | Tidak | RainViewer publik | Sumber radar presipitasi. Kosongkan untuk mematikan overlay pada jaringan tanpa internet |
+| `VITE_DEV_ALLOWED_HOSTS` | Tidak | kosong | Dev server saja. Host tambahan yang boleh mengakses `bun run dev`, dipisah koma |
 
 Konfigurasi environment divalidasi saat aplikasi dimuat. Nilai yang tidak valid
 akan menghasilkan error eksplisit dari `src/shared/lib/env.ts`.
+
+### Base URL tidak boleh memuat `/api/v1`
+
+Setiap endpoint di layer repository sudah menuliskan prefix-nya sendiri, misalnya
+`/api/v1/plta`. Bila base URL ikut memuat prefix itu, path akan tergandakan
+menjadi `/api/v1/api/v1/plta` dan seluruh request gagal. Validasi environment
+menolak nilai semacam itu dengan pesan eksplisit.
+
+| Tujuan | Nilai yang benar |
+| --- | --- |
+| Backend diakses langsung | `http://<backend-host>:8000` |
+| Backend diproksikan pada origin yang sama | `/` |
+| Salah | `http://<backend-host>:8000/api/v1` |
 
 ## Scripts
 
 | Command | Kegunaan |
 | --- | --- |
 | `bun run dev` | Menjalankan development server |
-| `bun run build` | Typecheck dan membuat production bundle |
-| `bun run preview` | Menjalankan hasil production build secara lokal |
+| `bun run build` | Typecheck dan membuat bundle production (`.env.production`) |
+| `bun run build:staging` | Typecheck dan membuat bundle staging (`.env.staging`) |
+| `bun run preview` | Menjalankan hasil build production secara lokal |
+| `bun run preview:staging` | Menjalankan hasil build staging secara lokal |
 | `bun run typecheck` | Memeriksa TypeScript tanpa menghasilkan file |
 | `bun run lint` | Menjalankan ESLint |
 | `bun run test` | Menjalankan seluruh test satu kali |
@@ -116,11 +134,144 @@ Uji output, aksesibilitas, dan perilaku yang terlihat pengguna.
 - `src/mocks/plta.mock.ts` menyediakan fixture simulasi dashboard untuk adapter
   PLTA; file tersebut bukan pengganti test fixture.
 
-## Production build
+## Environment dan deployment
+
+Aplikasi berjalan di jaringan internal, bukan di internet publik.
+
+| Environment | File env | Backend | Perintah build | Output |
+| --- | --- | --- | --- | --- |
+| Development | `.env.local` | diisi masing-masing developer | `bun run dev` | — |
+| Staging | `.env.staging` | `http://<backend-host>:18000` | `bun run build:staging` | `dist-staging/` |
+| Production | `.env.production` | `http://<backend-host>:8000` | `bun run build` | `dist/` |
+
+Ketiga file env berada **di luar Git** karena memuat alamat host internal. Repo
+ini publik, jadi alamat sebenarnya tidak dipublikasikan; yang tercantum di sini
+hanya placeholder `<backend-host>`.
+
+`.env.staging` dan `.env.production` dibuat sekali secara manual di server:
 
 ```bash
-bun run build
-bun run preview
+cd /var/www/frontend-telemetering/hydro-telemetry-react && cp .env.example .env.production && cp .env.example .env.staging
 ```
 
-Output production dibuat di `dist/` dan tidak disimpan di Git.
+lalu isi `VITE_API_BASE_URL` masing-masing dengan alamat backend yang sesuai
+(host saja, tanpa `/api/v1`). Keduanya bertahan saat `git pull` berikutnya.
+
+**Alamat backend ikut ter-bundle saat build.** Satu hasil build tidak bisa
+dipindah antar environment; staging dan production harus dibangun terpisah dan
+disimpan di direktori berbeda. Keduanya ada di `.gitignore`.
+
+GitHub Actions menaikkan kedua bundle sebagai artefak pada setiap jalannya.
+
+### Deployment di server
+
+Satu checkout melayani kedua environment dari dua direktori build:
+
+```text
+/var/www/frontend-telemetering/hydro-telemetry-react/
+├── dist/           <- production
+└── dist-staging/   <- staging
+```
+
+Berkas konfigurasinya ada di [`deploy/`](./deploy).
+
+#### Cara yang dipakai sekarang: `vite preview` lewat systemd
+
+| Environment | Service | Port |
+| --- | --- | --- |
+| Production | `telemetering-frontend` | 4173 |
+| Staging | `telemetering-frontend-staging` | 4174 |
+
+```bash
+sudo cp deploy/telemetering-frontend.service deploy/telemetering-frontend-staging.service /etc/systemd/system/ && sudo systemctl daemon-reload
+```
+
+```bash
+sudo systemctl enable --now telemetering-frontend telemetering-frontend-staging
+```
+
+Server preview Vite sudah menangani fallback SPA, jadi refresh browser pada
+route dalam seperti `/dashboard/plta/<id>/trends` tetap bekerja. Responsnya juga
+sudah dikompresi gzip.
+
+Dua catatan pada unit yang dipakai:
+
+- **`--strictPort` wajib.** Tanpa itu, bila port sudah terpakai Vite diam-diam
+  pindah ke port berikutnya dan bertabrakan dengan service satunya, sehingga
+  operator bisa membuka build yang salah tanpa satu pun pesan error.
+- **`--outDir` wajib.** Default `vite preview` adalah `dist/`, jadi service
+  staging harus menunjuk `dist-staging/` secara eksplisit.
+
+#### Alternatif: nginx
+
+`vite preview` adalah server Node satu proses yang memang tidak ditujukan untuk
+produksi. Untuk skala jaringan internal ini hal itu memadai, tetapi nginx
+memberi header cache per jenis aset, log akses, dan penyajian yang tidak putus
+saat proses di-restart. Konfigurasinya sudah siap di
+[`deploy/nginx.conf`](./deploy/nginx.conf) (production pada port 80, staging
+pada 8080):
+
+```bash
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/telemetering && sudo ln -sf /etc/nginx/sites-available/telemetering /etc/nginx/sites-enabled/telemetering && sudo nginx -t && sudo systemctl reload nginx
+```
+
+#### Rilis
+
+Rilis ke staging:
+
+```bash
+cd /var/www/frontend-telemetering/hydro-telemetry-react && git pull && bun install --frozen-lockfile && bun run build:staging
+```
+
+Rilis ke production, setelah staging diverifikasi:
+
+```bash
+cd /var/www/frontend-telemetering/hydro-telemetry-react && git pull && bun install --frozen-lockfile && bun run build
+```
+
+Setelah build staging selesai, muat ulang service-nya:
+
+```bash
+sudo systemctl restart telemetering-frontend-staging
+```
+
+Dan untuk production:
+
+```bash
+sudo systemctl restart telemetering-frontend
+```
+
+Restart diperlukan karena `vite preview` membaca daftar file saat start. Bila
+nanti pindah ke nginx, langkah ini tidak perlu lagi — nginx membaca langsung
+dari disk.
+
+Bila staging perlu mengikuti branch yang berbeda dari production, gandakan
+checkout-nya (`hydro-telemetry-react-staging`) dan arahkan `root` server block
+staging ke `dist/` milik checkout itu.
+
+### CORS
+
+Dengan base URL absolut, browser mengakses backend lintas origin sambil
+mengirim credentials, jadi backend wajib mengembalikan
+`Access-Control-Allow-Origin` berisi origin frontend secara **eksplisit** —
+wildcard `*` ditolak browser saat credentials disertakan — beserta
+`Access-Control-Allow-Credentials: true`. Dengan dua environment, kedua origin
+harus terdaftar di backend:
+
+| Frontend | Origin yang harus diizinkan | Backend yang diakses |
+| --- | --- | --- |
+| Production | `http://<host-server>:4173` | `http://<backend-host>:8000` |
+| Staging | `http://<host-server>:4174` | `http://<backend-host>:18000` |
+
+Bila nanti pindah ke nginx, port pada origin berubah menjadi `80` dan `8080`.
+
+Bila lebih praktis menghindari CORS, proksikan backend pada origin yang sama
+lalu isi `VITE_API_BASE_URL` dengan `/`; blok proxy-nya sudah disiapkan dalam
+keadaan nonaktif di `nginx.conf`.
+
+### Catatan dependency
+
+`prop-types` dan `react-is` terdaftar sebagai dependency langsung tetapi tidak
+diimpor kode aplikasi. Keduanya ada untuk memenuhi peer dependency
+`react-simple-maps`, yang rentang peer-nya berhenti di React 18. Jangan dihapus
+tanpa mengganti pustaka petanya lebih dulu.

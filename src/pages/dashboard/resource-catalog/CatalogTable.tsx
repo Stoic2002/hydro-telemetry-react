@@ -72,8 +72,8 @@ export function CatalogTabs({
             onClick={() => onChange(tab.value)}
             className={`inline-flex h-9 cursor-pointer items-center justify-center whitespace-nowrap rounded-sm px-3.5 text-[12.5px] transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/30 ${
               isActive
-                ? 'border border-border-subtle bg-white font-semibold text-brand-primary-strong'
-                : 'border border-transparent font-medium text-slate-600 hover:text-slate-900'
+                ? 'border border-border-subtle bg-surface-raised font-semibold text-brand-primary-strong'
+                : 'border border-transparent font-medium text-text-subtle hover:text-text-primary'
             }`}
           >
             {tab.label}
@@ -125,19 +125,19 @@ export default function CatalogTable({
       <div className="flex flex-col gap-2.5 border-b border-border-subtle py-4 lg:flex-row lg:flex-wrap lg:items-center">
         <form onSubmit={onSearch} className="flex min-w-0 items-center gap-2 lg:w-72 lg:shrink-0">
           <div className="relative flex min-w-0 flex-1 items-center">
-            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-slate-400" />
+            <Search size={15} className="pointer-events-none absolute left-3 shrink-0 text-text-muted" />
             <input
               type="search"
               value={searchInput}
               onChange={(event) => onSearchInputChange(event.target.value)}
               maxLength={100}
               placeholder={searchPlaceholder}
-              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-white pr-3 pl-8.5 text-[12.5px] text-slate-900 outline-none transition-[border-color,box-shadow] hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-slate-400"
+              className="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-surface-raised pr-3 pl-8.5 text-[12.5px] text-text-primary outline-none transition-[border-color,box-shadow] hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 placeholder:text-text-placeholder"
             />
           </div>
           <button
             type="submit"
-            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-white px-3 text-[12.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            className="h-9 shrink-0 cursor-pointer rounded-sm border border-border-subtle bg-surface-raised px-3 text-[12.5px] font-semibold text-text-secondary transition-colors hover:bg-surface-base"
           >
             Cari
           </button>
@@ -145,7 +145,7 @@ export default function CatalogTable({
             <button
               type="button"
               onClick={onClearSearch}
-              className="h-9 shrink-0 cursor-pointer rounded-sm px-2 text-[12.5px] font-semibold text-slate-500 transition-colors hover:bg-slate-100"
+              className="h-9 shrink-0 cursor-pointer rounded-sm px-2 text-[12.5px] font-semibold text-text-muted transition-colors hover:bg-surface-overlay"
             >
               Bersihkan
             </button>
@@ -155,13 +155,13 @@ export default function CatalogTable({
         {filters && <div className="flex flex-wrap items-center gap-2">{filters}</div>}
 
         {!isLoading && !isError && (
-          <span className="text-[11.5px] text-slate-500 lg:ml-auto">
+          <span className="text-[11.5px] text-text-muted lg:ml-auto">
             {total} {itemLabel}
           </span>
         )}
       </div>
 
-      <section className="mt-5 flex flex-col overflow-hidden rounded-md border border-border-subtle bg-white">
+      <section className="mt-5 flex flex-col overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
         <RefetchBar isRefetching={isFetching && !isLoading} />
 
         <div className="overflow-x-auto">

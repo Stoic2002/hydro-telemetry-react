@@ -125,16 +125,16 @@ export default function SatelliteHydrologyMap({
         })}
       </svg>
 
-      <figcaption className="absolute bottom-3 left-3 z-20 max-w-[min(420px,calc(100%-24px))] rounded-[4px] bg-white/85 px-2 py-1.5 backdrop-blur-[2px]">
+      <figcaption className="absolute bottom-3 left-3 z-20 max-w-[min(420px,calc(100%-24px))] rounded-[4px] bg-surface-raised/85 px-2 py-1.5 backdrop-blur-[2px]">
         <p className="truncate text-[11px] font-semibold text-text-primary">{imagery.damName}</p>
-        <p className="mt-0.5 truncate font-mono text-[10px] text-slate-600">
+        <p className="mt-0.5 truncate font-mono text-[10px] text-text-subtle">
           {imagery.acquisitionLabel}
         </p>
         <a
           href={imagery.attributionUrl}
           target="_blank"
           rel="noreferrer"
-          className="mt-0.5 inline-flex max-w-full items-center gap-1 font-mono text-[10px] text-slate-500 transition-colors hover:text-brand-primary-strong"
+          className="mt-0.5 inline-flex max-w-full items-center gap-1 font-mono text-[10px] text-text-muted transition-colors hover:text-brand-primary-strong"
         >
           <span className="truncate">World Imagery — {imagery.attribution}</span>
           <ExternalLink size={10} className="shrink-0" aria-hidden="true" />
@@ -145,7 +145,7 @@ export default function SatelliteHydrologyMap({
         href={imagery.mapUrl}
         target="_blank"
         rel="noreferrer"
-        className="absolute right-3 top-3 z-30 inline-flex items-center gap-1.5 rounded-sm border border-white/60 bg-white/90 px-2.5 py-1.5 text-[11px] font-semibold text-text-primary backdrop-blur transition-colors hover:bg-white"
+        className="absolute right-3 top-3 z-30 inline-flex items-center gap-1.5 rounded-sm border border-white/60 bg-surface-raised/90 px-2.5 py-1.5 text-[11px] font-semibold text-text-primary backdrop-blur transition-colors hover:bg-surface-raised"
       >
         Buka peta satelit
         <ExternalLink size={12} aria-hidden="true" />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { DashboardMetric, MonthlyHydrology } from '../../../features/hydrology/model';
+import type { DashboardMetric, MonthlyHydrology } from '../../../features/hydrology';
 import type { MonitoringParameterLatest } from '../../../features/monitoring';
-import type { PlantTag } from '../../../features/plta/model';
+import type { PlantTag } from '../../../features/plta';
 import {
   buildMonthlyForecastRows,
   buildUploadTarget,

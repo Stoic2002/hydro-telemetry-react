@@ -1,12 +1,12 @@
 import { useRef, useState, type RefObject } from 'react';
-import SatelliteHydrologyMap from '../../../features/plta/components/SatelliteHydrologyMap';
 import {
   getDamImagery,
   HYDROLOGY_ZONES,
+  SatelliteHydrologyMap,
   type HydrologyZone,
-} from '../../../features/plta/dam-imagery';
-import type { Plant } from '../../../features/plta/model';
-import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload/model';
+} from '../../../features/plta';
+import type { Plant } from '../../../features/plta';
+import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload';
 import {
   GenericHydrologySchematic,
   HydrologyMetricCard,
@@ -66,7 +66,7 @@ export default function HydrologySpatialLayout({
   if (!imagery || imageLoadFailed) {
     return (
       <>
-        <div className="grid divide-y divide-border-subtle overflow-hidden rounded-md border border-border-subtle bg-white lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+        <div className="grid divide-y divide-border-subtle overflow-hidden rounded-md border border-border-subtle bg-surface-raised lg:grid-cols-3 lg:divide-x lg:divide-y-0">
           {HYDROLOGY_ZONES.map((zone) => (
             <HydrologyMetricCard
               key={zone}
@@ -91,7 +91,7 @@ export default function HydrologySpatialLayout({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-border-subtle bg-white">
+    <div className="overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
       <SatelliteHydrologyMap
         imagery={imagery}
         activeZone={activeZone}

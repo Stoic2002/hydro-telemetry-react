@@ -163,44 +163,44 @@ export default function MonthlyHydrologySheet({
       >
         <div className="border-b border-surface-overlay pb-5">
           <p className="text-xs font-medium text-cyan-700">Periode dan PLTA</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">
+          <p className="mt-1 text-sm font-semibold text-text-strong">
             {monthLabel} {year} · PLTA {plantName}
           </p>
         </div>
 
         <section className="flex flex-col gap-4">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">Kondisi hidrologi</h3>
-            <p className="mt-1 text-xs text-slate-500">
+            <h3 className="text-sm font-semibold text-text-strong">Kondisi hidrologi</h3>
+            <p className="mt-1 text-xs text-text-muted">
               Field kosong tidak akan menimpa data yang sudah tersimpan.
             </p>
           </div>
-          <label className="flex flex-col gap-2 text-xs font-semibold text-slate-500">
+          <label className="flex flex-col gap-2 text-xs font-semibold text-text-muted">
             Prediksi Hidrologi
             <textarea
               {...form.register('hydrologyPrediction')}
               disabled={upsertMutation.isPending}
               rows={3}
               placeholder="Contoh: Normal–Basah"
-              className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-normal text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+              className="w-full resize-y rounded-xl border border-border-subtle bg-surface-raised px-3.5 py-3 text-sm font-normal text-text-strong outline-none transition-colors placeholder:text-text-placeholder focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-surface-base"
             />
           </label>
-          <label className="flex flex-col gap-2 text-xs font-semibold text-slate-500">
+          <label className="flex flex-col gap-2 text-xs font-semibold text-text-muted">
             Aktual Hidrologi
             <textarea
               {...form.register('hydrologyActual')}
               disabled={upsertMutation.isPending}
               rows={3}
               placeholder="Masukkan kondisi aktual..."
-              className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-normal text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-slate-50"
+              className="w-full resize-y rounded-xl border border-border-subtle bg-surface-raised px-3.5 py-3 text-sm font-normal text-text-strong outline-none transition-colors placeholder:text-text-placeholder focus:border-brand-primary-strong focus:ring-2 focus:ring-brand-primary-strong/15 disabled:bg-surface-base"
             />
           </label>
         </section>
 
         <section className="flex flex-col gap-4 border-t border-surface-overlay pt-5">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">Energi produksi</h3>
-            <p className="mt-1 text-xs text-slate-500">
+            <h3 className="text-sm font-semibold text-text-strong">Energi produksi</h3>
+            <p className="mt-1 text-xs text-text-muted">
               Semua nilai menggunakan satuan MWh.
             </p>
           </div>
@@ -249,7 +249,7 @@ export default function MonthlyHydrologySheet({
             disabled={upsertMutation.isPending}
             placeholder="0"
           />
-          <p className="text-xs leading-5 text-slate-500">
+          <p className="text-xs leading-5 text-text-muted">
             Persentase pencapaian dihitung otomatis oleh server.
           </p>
         </section>

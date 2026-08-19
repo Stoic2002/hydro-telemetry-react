@@ -5,15 +5,16 @@ import { KeyRound, Save, UserRound } from 'lucide-react';
 import { z } from 'zod';
 import { ApiError } from '../../api/http';
 import {
+  RoleBadge,
   useChangeCurrentPasswordMutation,
   useUpdateCurrentUserMutation,
-} from '../../features/users/api/queries';
-import RoleBadge from '../../features/users/components/RoleBadge';
+} from '../../features/users';
 import { useAuthStore } from '../../store/auth-store';
 import { useNotificationStore } from '../../store/notification-store';
 import Input from '../../components/atoms/Input';
 import Button from '../../components/atoms/Button';
 import PageHeader from '../../components/ui/PageHeader';
+import ErrorState from '../../components/ui/ErrorState';
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(3, 'Nama minimal 3 karakter'),
@@ -100,6 +101,29 @@ export default function AccountSettings() {
     }
   };
 
+  // Tanpa profil sesi, kedua form hanya akan menampilkan field kosong dan
+  // menyimpan data ke akun yang tidak diketahui.
+  if (!user) {
+    return (
+      <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
+        <PageHeader
+          title="Profil Saya"
+          description="Ubah data diri dan password akun Anda"
+        />
+
+        <div className="rounded-md border border-border-subtle bg-surface-raised">
+          <ErrorState
+            title="Data akun belum dapat dimuat"
+            description="Data akun Anda belum tersedia di perangkat ini. Muat ulang data akun, atau masuk kembali bila masalahnya berlanjut."
+            retryLabel="Muat ulang data akun"
+            onRetry={() => void refreshProfile()}
+            className="py-10"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 animate-in fade-in duration-500">
       <PageHeader
@@ -108,7 +132,7 @@ export default function AccountSettings() {
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:items-start">
-        <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-white">
+        <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
           <div className="flex items-center gap-2.5 border-b border-border-subtle px-[18px] py-3.5">
             <div className="flex size-[30px] shrink-0 items-center justify-center rounded-sm border border-brand-tint-border bg-brand-tint text-brand-primary-strong">
               <UserRound size={16} />
@@ -142,7 +166,7 @@ export default function AccountSettings() {
           </form>
         </section>
 
-        <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-white">
+        <section className="flex flex-col overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
           <div className="flex items-center gap-2.5 border-b border-border-subtle px-[18px] py-3.5">
             <div className="flex size-[30px] shrink-0 items-center justify-center rounded-sm border border-amber-200 bg-amber-50 text-amber-600">
               <KeyRound size={16} />

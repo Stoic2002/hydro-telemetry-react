@@ -14,7 +14,7 @@ interface TablePaginationProps {
 }
 
 const NAV_CLASSES =
-  'flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-white text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/30 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-white';
+  'flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border-subtle bg-surface-raised text-text-secondary transition-colors hover:bg-surface-base focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/30 disabled:cursor-not-allowed disabled:text-disabled disabled:hover:bg-surface-raised';
 
 export default function TablePagination({
   page,
@@ -34,7 +34,7 @@ export default function TablePagination({
     <div
       className={`flex items-center justify-between gap-3 border-t border-border-subtle bg-surface-base px-4 py-2.5 ${className}`}
     >
-      <span className="text-[11.5px] text-slate-500">
+      <span className="text-[11.5px] text-text-muted">
         Menampilkan {firstItem}–{lastItem} dari {total} {itemLabel}
       </span>
       <div className="flex shrink-0 gap-1.5">

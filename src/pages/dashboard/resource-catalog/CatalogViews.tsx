@@ -8,16 +8,16 @@ import Select from '../../../components/atoms/Select';
 import Skeleton from '../../../components/atoms/Skeleton';
 import Badge from '../../../components/atoms/Badge';
 import {
+  getPLTAErrorMessage,
   usePlantCatalogQuery,
   usePLTAListQuery,
   usePLTATagsQuery,
   useRiverBasinsQuery,
-} from '../../../features/plta/api/queries';
-import { getPLTAErrorMessage } from '../../../features/plta/error';
+} from '../../../features/plta';
 import type {
   PlantTagListParams,
   PlantTagProtocol,
-} from '../../../features/plta/model';
+} from '../../../features/plta';
 import CatalogTable from './CatalogTable';
 import {
   PAGE_LIMIT,
@@ -95,7 +95,7 @@ export function RiverBasinsCatalog() {
       onNextPage={() => setPage((current) => Math.min(current + 1, totalPages))}
     >
       {riverBasins.map((riverBasin) => (
-        <tr key={riverBasin.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-slate-50/60">
+        <tr key={riverBasin.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-surface-base/60">
           <td className="px-3.5 py-2.5 font-mono text-[11.5px] font-medium tabular-nums text-text-secondary">{riverBasin.code}</td>
           <td className="px-3.5 py-2.5 text-[12.5px] font-medium text-text-primary">{riverBasin.name}</td>
           <td className="px-3.5 py-2.5 text-[11.5px] leading-[1.5] text-text-muted">
@@ -182,11 +182,11 @@ export function PlantsCatalog({ onOpenTags }: { onOpenTags: (pltaId: string) => 
       onNextPage={() => setPage((current) => Math.min(current + 1, totalPages))}
     >
       {plants.map((plant) => (
-        <tr key={plant.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-slate-50/60">
+        <tr key={plant.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-surface-base/60">
           <td className="px-3.5 py-2.5">
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate text-[12.5px] font-medium text-text-primary">{plant.name}</span>
-              <span className="font-mono text-[11px] font-medium text-slate-400">{plant.code}</span>
+              <span className="font-mono text-[11px] font-medium text-text-muted">{plant.code}</span>
             </div>
           </td>
           <td className="px-3.5 py-2.5 text-[12.5px] text-text-secondary">
@@ -202,7 +202,7 @@ export function PlantsCatalog({ onOpenTags }: { onOpenTags: (pltaId: string) => 
           </td>
           <td className="px-3.5 py-2.5">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary">
-              <span className={`size-2 rounded-full ${plant.isActive ? 'bg-status-success-strong' : 'bg-slate-300'}`} />
+              <span className={`size-2 rounded-full ${plant.isActive ? 'bg-status-success-strong' : 'bg-disabled'}`} />
               {plant.isActive ? 'Aktif' : 'Nonaktif'}
             </span>
           </td>
@@ -210,7 +210,7 @@ export function PlantsCatalog({ onOpenTags }: { onOpenTags: (pltaId: string) => 
             <button
               type="button"
               onClick={() => onOpenTags(plant.id)}
-              className="inline-flex h-[30px] cursor-pointer items-center rounded-sm border border-border-subtle bg-white px-2.5 text-[11.5px] font-semibold text-brand-primary-strong transition-colors hover:border-brand-tint-border hover:bg-brand-tint"
+              className="inline-flex h-[30px] cursor-pointer items-center rounded-sm border border-border-subtle bg-surface-raised px-2.5 text-[11.5px] font-semibold text-brand-primary-strong transition-colors hover:border-brand-tint-border hover:bg-brand-tint"
             >
               Lihat Parameter
             </button>
@@ -361,7 +361,7 @@ export function TagsCatalog({
       onNextPage={() => setPage((current) => Math.min(current + 1, totalPages))}
     >
       {tagsData.map((tag) => (
-        <tr key={tag.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-slate-50/60">
+        <tr key={tag.id} className="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-surface-base/60">
           <td className="px-3.5 py-2.5">
             <span className="font-mono text-[11.5px] font-medium text-text-primary">{tag.parameter}</span>
           </td>
@@ -376,7 +376,7 @@ export function TagsCatalog({
           <td className="px-3.5 py-2.5 text-[12.5px] text-text-secondary">{tag.unit || '—'}</td>
           <td className="px-3.5 py-2.5">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary">
-              <span className={`size-2 rounded-full ${tag.enabled ? 'bg-status-success-strong' : 'bg-slate-300'}`} />
+              <span className={`size-2 rounded-full ${tag.enabled ? 'bg-status-success-strong' : 'bg-disabled'}`} />
               {tag.enabled ? 'Aktif' : 'Nonaktif'}
             </span>
           </td>

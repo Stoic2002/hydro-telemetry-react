@@ -266,7 +266,7 @@ function EditUserSheet({
       >
         <div className="rounded-xl bg-cyan-50/70 px-4 py-3 ring-1 ring-cyan-100">
           <p className="text-xs font-medium text-cyan-700">Pengguna</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">
+          <p className="mt-1 text-sm font-semibold text-text-strong">
             {getUserDisplayName(user)}
           </p>
         </div>

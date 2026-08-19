@@ -263,7 +263,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
           disabled={disabled}
           onClick={() => (isOpen ? closeDropdown() : openDropdown())}
           onKeyDown={handleTriggerKeyDown}
-          className={`peer flex min-w-0 w-full cursor-pointer items-center border bg-white font-medium text-slate-900 outline-none transition-[border-color,box-shadow,background-color] duration-150 hover:border-slate-300 focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-slate-50 disabled:text-slate-400 ${
+          className={`peer flex min-w-0 w-full cursor-pointer items-center border bg-surface-raised font-medium text-text-primary outline-none transition-[border-color,box-shadow,background-color] duration-150 hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15 disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-surface-base disabled:text-text-muted ${
             isCompact ? 'h-9 rounded-sm pr-8 text-xs' : 'h-11 rounded-md pr-10 text-[13px]'
           } ${leadingIcon ? (isCompact ? 'pl-9' : 'pl-10') : isCompact ? 'pl-3' : 'pl-3.5'} ${
             error
@@ -274,7 +274,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
           {leadingIcon && (
             <span
               aria-hidden="true"
-              className={`pointer-events-none absolute left-3 text-slate-400 transition-colors group-focus-within/select:text-brand-primary-strong ${
+              className={`pointer-events-none absolute left-3 text-text-muted transition-colors group-focus-within/select:text-brand-primary-strong ${
                 isCompact ? '[&>svg]:size-3.5' : '[&>svg]:size-4'
               }`}
             >
@@ -288,7 +288,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
 
         <span
           aria-hidden="true"
-          className={`pointer-events-none absolute flex items-center justify-center text-slate-500 peer-disabled:text-slate-300 ${
+          className={`pointer-events-none absolute flex items-center justify-center text-text-muted peer-disabled:text-disabled ${
             isCompact ? 'right-3' : 'right-3.5'
           }`}
         >
@@ -307,7 +307,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
           aria-labelledby={label ? triggerId : undefined}
           tabIndex={-1}
           onKeyDown={handleListboxKeyDown}
-          className="fixed z-[200] overflow-y-auto overflow-x-hidden rounded-lg border border-border-subtle bg-white shadow-panel outline-none"
+          className="fixed z-[200] overflow-y-auto overflow-x-hidden rounded-lg border border-border-subtle bg-surface-raised shadow-panel outline-none"
           style={dropdownPosition}
         >
           {options.map((option, index) => {
@@ -324,12 +324,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
                 disabled={option.disabled}
                 onMouseEnter={() => setHighlightedIndex(index)}
                 onClick={() => selectOption(option)}
-                className={`flex min-h-10 w-full cursor-pointer items-center gap-2 px-3.5 py-2 text-left text-[13px] transition-colors disabled:cursor-not-allowed disabled:text-slate-300 ${
+                className={`flex min-h-10 w-full cursor-pointer items-center gap-2 px-3.5 py-2 text-left text-[13px] transition-colors disabled:cursor-not-allowed disabled:text-disabled ${
                   isSelected
                     ? 'bg-brand-tint font-semibold text-brand-primary-pressed'
                     : isHighlighted
-                      ? 'bg-slate-50 text-slate-900'
-                      : 'text-slate-700 hover:bg-slate-50'
+                      ? 'bg-surface-base text-text-primary'
+                      : 'text-text-secondary hover:bg-surface-base'
                 }`}
               >
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
@@ -344,7 +344,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({
       {(error || helperText) && (
         <span
           id={messageId}
-          className={`text-[11.5px] font-medium ${error ? 'text-status-danger-strong' : 'text-slate-400'}`}
+          className={`text-[11.5px] font-medium ${error ? 'text-status-danger-strong' : 'text-text-muted'}`}
         >
           {error || helperText}
         </span>

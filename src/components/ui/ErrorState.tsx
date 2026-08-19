@@ -27,8 +27,8 @@ export default function ErrorState({
       <div className="flex size-11 items-center justify-center rounded-full bg-red-100 font-mono text-[17px] font-semibold text-red-600">
         !
       </div>
-      <p className="mt-3 text-[13px] font-semibold text-slate-900">{title}</p>
-      <p className="mt-1 max-w-sm text-[11.5px] leading-[1.6] text-slate-500">{description}</p>
+      <p className="mt-3 text-[13px] font-semibold text-text-primary">{title}</p>
+      <p className="mt-1 max-w-sm text-[11.5px] leading-[1.6] text-text-muted">{description}</p>
       {onRetry && (
         <Button
           type="button"

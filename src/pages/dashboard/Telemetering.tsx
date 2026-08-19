@@ -10,26 +10,22 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import Button from '../../components/atoms/Button';
-import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
+import { PlantSwitcher, useActivePLTA, usePLTATagsQuery } from '../../features/plta';
 import {
   useMonitoringStream,
   usePLTALatestQuery,
 } from '../../features/monitoring';
 import {
-  useActivePLTA,
-  usePLTATagsQuery,
-} from '../../features/plta/api/queries';
-import {
+  getHydrologyErrorMessage,
+  HydrologyImageUploadSheet,
+  MonthlyHydrologySheet,
   useMonthlyHydrologyImageQuery,
   useMonthlyHydrologyQuery,
   usePLTAHydrologyDashboardQuery,
-} from '../../features/hydrology/api/queries';
-import { getHydrologyErrorMessage } from '../../features/hydrology/error';
-import MonthlyHydrologySheet from '../../features/hydrology/components/MonthlyHydrologySheet';
-import HydrologyImageUploadSheet from '../../features/hydrology/components/HydrologyImageUploadSheet';
-import type { MonthlyHydrologyImageKind } from '../../features/hydrology/model';
-import TelemetryUploadSheet from '../../features/telemetry-upload/components/TelemetryUploadSheet';
-import type { DailyTelemetryUploadTarget } from '../../features/telemetry-upload/model';
+} from '../../features/hydrology';
+import type { MonthlyHydrologyImageKind } from '../../features/hydrology';
+import { TelemetryUploadSheet } from '../../features/telemetry-upload';
+import type { DailyTelemetryUploadTarget } from '../../features/telemetry-upload';
 import HydrologySpatialLayout from './telemetering/HydrologySpatialLayout';
 import SourceMarker from '../../components/atoms/SourceMarker';
 import Banner from '../../components/ui/Banner';
@@ -270,7 +266,7 @@ export default function Telemetering() {
       <section>
         <div className="mb-3.5 flex items-baseline justify-between gap-3">
           <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-placeholder">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">
               Bagian 1
             </p>
             <h2 className="section-title mt-1">Hidrologi Bulanan</h2>
@@ -364,7 +360,7 @@ export default function Telemetering() {
       <section className="border-t border-border-strong pt-6">
         <div className="mb-3.5 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
           <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-placeholder">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">
               Bagian 2
             </p>
             <h2 className="section-title mt-1">Hidrologi Harian</h2>

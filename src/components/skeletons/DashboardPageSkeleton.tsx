@@ -15,13 +15,13 @@ function PageHeadingSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:justify-between">
+    <div className="overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
+      <div className="flex flex-col gap-3 border-b border-border-subtle p-4 sm:flex-row sm:justify-between">
         <Skeleton className="h-10 w-full rounded-md sm:w-72" />
         <Skeleton className="h-10 w-32 rounded-md" />
       </div>
       <div className="overflow-hidden">
-        <div className="grid grid-cols-[1.5fr_1fr_0.8fr_88px] gap-4 bg-slate-50 px-4 py-3">
+        <div className="grid grid-cols-[1.5fr_1fr_0.8fr_88px] gap-4 bg-surface-base px-4 py-3">
           {Array.from({ length: 4 }, (_, index) => (
             <Skeleton key={`table-head-${index}`} className="h-3 w-full rounded" />
           ))}
@@ -47,7 +47,7 @@ function TableSkeleton() {
 function TelemeteringSkeleton() {
   return (
     <>
-      <div className="border-t border-slate-200 pt-5">
+      <div className="border-t border-border-subtle pt-5">
         <div className="flex justify-between">
           <Skeleton className="h-5 w-40 rounded" />
           <Skeleton className="h-3 w-12 rounded" />
@@ -61,7 +61,7 @@ function TelemeteringSkeleton() {
           </div>
         </div>
       </div>
-      <div className="border-t border-slate-200 pt-5">
+      <div className="border-t border-border-subtle pt-5">
         <Skeleton className="h-5 w-36 rounded" />
         <div className="mt-4 grid gap-4 xl:grid-cols-3">
           {Array.from({ length: 3 }, (_, index) => (
@@ -77,11 +77,11 @@ function TelemeteringSkeleton() {
 function TrendsSkeleton() {
   return (
     <>
-      <div className="flex flex-col gap-4 border-y border-slate-200 py-4 sm:flex-row">
+      <div className="flex flex-col gap-4 border-y border-border-subtle py-4 sm:flex-row">
         <Skeleton className="h-10 w-full rounded-md sm:w-64" />
         <Skeleton className="h-10 w-full rounded-md sm:w-64" />
       </div>
-      <div className="rounded-md border border-slate-200 bg-white p-4 sm:p-6">
+      <div className="rounded-md border border-border-subtle bg-surface-raised p-4 sm:p-6">
         <div className="flex justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className="h-5 w-28 rounded" />
@@ -118,8 +118,8 @@ function ForecastingSkeleton() {
 
 function UploadSkeleton() {
   return (
-    <div className="w-full overflow-hidden rounded-md border border-slate-200 bg-white">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
+    <div className="w-full overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
+      <div className="flex items-center gap-3 border-b border-border-subtle px-5 py-4 sm:px-6">
         <Skeleton className="size-10 shrink-0 rounded-md" />
         <div className="space-y-2">
           <Skeleton className="h-4 w-44 rounded" />
@@ -130,7 +130,7 @@ function UploadSkeleton() {
         <div className="p-5 sm:p-6">
           <Skeleton className="h-60 rounded-md" />
         </div>
-        <div className="space-y-5 border-t border-slate-200 bg-slate-50/60 p-5 lg:border-l lg:border-t-0">
+        <div className="space-y-5 border-t border-border-subtle bg-surface-base/60 p-5 lg:border-l lg:border-t-0">
           <Skeleton className="h-11 rounded-md" />
           <Skeleton className="h-20 rounded-md" />
           <Skeleton className="h-16 rounded-md" />
@@ -143,7 +143,7 @@ function UploadSkeleton() {
 
 function FormSkeleton() {
   return (
-    <div className="w-full max-w-3xl rounded-md border border-slate-200 bg-white p-4 sm:p-6">
+    <div className="w-full max-w-3xl rounded-md border border-border-subtle bg-surface-raised p-4 sm:p-6">
       <Skeleton className="h-5 w-40 rounded" />
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <Skeleton className="h-10 rounded-md" />

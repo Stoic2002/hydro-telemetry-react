@@ -1,4 +1,4 @@
-import type { PlantTagProtocol } from '../../../features/plta/model';
+import type { PlantTagProtocol } from '../../../features/plta';
 
 export const PAGE_LIMIT = 10;
 export const RIVER_BASIN_LOOKUP_LIMIT = 200;

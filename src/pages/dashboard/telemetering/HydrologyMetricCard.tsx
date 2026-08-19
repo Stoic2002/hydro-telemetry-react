@@ -1,9 +1,9 @@
 import { useState, type RefObject } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { HYDROLOGY_ZONE_PRESENTATION, type HydrologyZone } from '../../../features/plta/dam-imagery';
+import { HYDROLOGY_ZONE_PRESENTATION, type HydrologyZone } from '../../../features/plta';
 import SourceMarker from '../../../components/atoms/SourceMarker';
 import type { MetricRow, MetricSection } from './presentation';
-import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload/model';
+import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload';
 
 function MetricRowItem({
   row,
@@ -62,7 +62,7 @@ function MetricRowItem({
               <span className="truncate text-[11.5px] text-text-muted">{subRow.label}</span>
               <span className="shrink-0 whitespace-nowrap text-right font-mono text-xs tabular-nums text-text-secondary">
                 {subRow.value}
-                {subRow.unit && <span className="ml-1 text-[10.5px] text-text-placeholder">{subRow.unit}</span>}
+                {subRow.unit && <span className="ml-1 text-[10.5px] text-text-muted">{subRow.unit}</span>}
               </span>
             </div>
           ))}
@@ -165,7 +165,7 @@ export function HydrologyMetricCard({
 
 export function GenericHydrologySchematic({ plantName }: { plantName: string }) {
   return (
-    <article className="overflow-hidden rounded-md border border-border-subtle bg-white">
+    <article className="overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
       <div className="border-b border-border-subtle px-5 py-4">
         <h3 className="text-[15px] font-semibold text-text-primary">Skema Hidrologi</h3>
       </div>

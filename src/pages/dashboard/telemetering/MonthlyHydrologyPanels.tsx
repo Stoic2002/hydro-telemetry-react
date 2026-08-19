@@ -1,7 +1,7 @@
 import { ImageOff, Upload } from 'lucide-react';
 import Skeleton from '../../../components/atoms/Skeleton';
 import SourceMarker from '../../../components/atoms/SourceMarker';
-import type { MonthlyHydrology } from '../../../features/hydrology/model';
+import type { MonthlyHydrology } from '../../../features/hydrology';
 import {
   MONTHS,
   type MetricRow,
@@ -12,15 +12,15 @@ const sourceClasses: Record<MetricSource, string> = {
   api: 'text-brand-primary-pressed',
   formula: 'text-violet-700',
   input: 'text-amber-700',
-  constant: 'text-slate-600',
-  unavailable: 'text-text-placeholder',
+  constant: 'text-text-subtle',
+  unavailable: 'text-text-muted',
 };
 
 function StatusLabel({ value }: { value: string }) {
   const normalizedValue = value.toLocaleLowerCase('id-ID');
 
   if (value === '—') {
-    return <span className="font-mono text-xs font-medium text-text-placeholder">—</span>;
+    return <span className="font-mono text-xs font-medium text-text-muted">—</span>;
   }
 
   const style = normalizedValue.includes('normal')
@@ -29,7 +29,7 @@ function StatusLabel({ value }: { value: string }) {
       ? 'bg-zone-hulu'
       : normalizedValue.includes('kering')
         ? 'bg-zone-dam'
-        : 'bg-slate-300';
+        : 'bg-disabled';
 
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-text-secondary">
@@ -74,7 +74,7 @@ export function MonthlyTable({
   ];
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-subtle bg-white">
+    <div className="overflow-x-auto rounded-md border border-border-subtle bg-surface-raised">
       <table className="w-full min-w-[1120px] table-fixed border-collapse">
         <thead>
           <tr className="bg-surface-overlay">
@@ -107,7 +107,7 @@ export function MonthlyTable({
             <tr key={row.label} className="border-t border-surface-overlay first:border-border-subtle">
               <th
                 scope="row"
-                className="sticky left-0 z-10 border-r border-border-subtle bg-white px-3.5 py-2.5 text-left text-xs font-semibold text-text-primary"
+                className="sticky left-0 z-10 border-r border-border-subtle bg-surface-raised px-3.5 py-2.5 text-left text-xs font-semibold text-text-primary"
               >
                 {row.label}
               </th>
@@ -118,7 +118,7 @@ export function MonthlyTable({
                   <td
                     key={entry.month}
                     className={`px-2 py-2.5 text-center ${
-                      isCurrentMonth ? 'bg-brand-tint' : 'bg-white'
+                      isCurrentMonth ? 'bg-brand-tint' : 'bg-surface-raised'
                     }`}
                   >
                     <StatusLabel value={row.getValue(entry)} />
@@ -168,13 +168,13 @@ export function ForecastMapCard({
           <img src={imageUrl} alt={title} className="size-full object-contain" />
         ) : canUpload ? (
           <div className="flex flex-col items-center gap-2 px-4 text-center">
-            <Upload size={20} className="text-slate-400" />
+            <Upload size={20} className="text-text-muted" />
             <span className="text-xs font-semibold text-text-secondary">Unggah gambar</span>
             <span className="text-[10.5px] text-text-muted">{subtitle}</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 px-4 text-center">
-            <ImageOff size={20} className={isError ? 'text-red-400' : 'text-slate-300'} />
+            <ImageOff size={20} className={isError ? 'text-red-400' : 'text-disabled'} />
             <span className={`text-[10.5px] ${isError ? 'text-status-danger-strong' : 'text-text-muted'}`}>
               {isError ? 'Gambar gagal dimuat' : 'Gambar belum tersedia'}
             </span>
@@ -186,7 +186,7 @@ export function ForecastMapCard({
       >
         <span className="truncate text-xs font-medium text-text-primary">{title}</span>
         <span
-          className={`shrink-0 text-[10.5px] ${imageUrl ? 'text-text-muted' : 'text-text-placeholder'}`}
+          className={`shrink-0 text-[10.5px] ${imageUrl ? 'text-text-muted' : 'text-text-muted'}`}
         >
           {meta}
         </span>
@@ -200,7 +200,7 @@ export function ForecastMapCard({
         type="button"
         onClick={onUpload}
         aria-label={`Unggah ${title}`}
-        className="cursor-pointer overflow-hidden rounded-md border border-dashed border-border-strong bg-white text-left transition-colors hover:border-brand-primary-strong focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/30"
+        className="cursor-pointer overflow-hidden rounded-md border border-dashed border-border-strong bg-surface-raised text-left transition-colors hover:border-brand-primary-strong focus:outline-none focus:ring-2 focus:ring-brand-primary-strong/30"
       >
         {content}
       </button>
@@ -208,7 +208,7 @@ export function ForecastMapCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-md border border-border-subtle bg-white">
+    <article className="overflow-hidden rounded-md border border-border-subtle bg-surface-raised">
       {content}
     </article>
   );
@@ -231,7 +231,7 @@ export function ForecastDetail({ rows }: { rows: MetricRow[] }) {
           >
             <span className="flex min-w-0 items-center gap-[7px]">
               <span
-                className={`truncate text-[12.5px] ${isUnavailable ? 'text-text-placeholder' : 'text-text-secondary'}`}
+                className={`truncate text-[12.5px] ${isUnavailable ? 'text-text-muted' : 'text-text-secondary'}`}
               >
                 {row.label}
               </span>
@@ -241,7 +241,7 @@ export function ForecastDetail({ rows }: { rows: MetricRow[] }) {
               </span>
             </span>
             <span
-              className={`metric-value shrink-0 text-[13px] ${isUnavailable ? 'text-text-placeholder' : ''}`}
+              className={`metric-value shrink-0 text-[13px] ${isUnavailable ? 'text-text-muted' : ''}`}
             >
               {row.value}
               {row.unit && <span className="metric-unit ml-1">{row.unit}</span>}
