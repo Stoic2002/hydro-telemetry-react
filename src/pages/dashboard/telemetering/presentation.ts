@@ -28,6 +28,13 @@ export const MONTHS = [
 
 export type MetricSource = 'api' | 'formula' | 'input' | 'unavailable' | 'constant';
 
+/** Pembacaan per stasiun di dalam satu parameter. */
+export interface MetricSubRow {
+  label: string;
+  value: string;
+  unit?: string;
+}
+
 export interface MetricRow {
   label: string;
   value: string;
@@ -36,6 +43,8 @@ export interface MetricRow {
   sourceType: MetricSource;
   hasData?: boolean;
   uploadTarget?: DailyTelemetryUploadTarget;
+  /** Terisi hanya bila parameter punya lebih dari satu stasiun. */
+  subRows?: MetricSubRow[];
 }
 
 export interface MetricSection {
@@ -121,6 +130,21 @@ const dashboardSourceLabel: Record<DashboardMetric['source'], string> = {
   constant: 'Konstanta',
 };
 
+/**
+ * Satu stasiun tidak dijadikan sub-baris: nilai induknya sudah nilai stasiun itu,
+ * jadi menampilkannya lagi hanya mengulang angka yang sama.
+ */
+function metricSubRows(metric: DashboardMetric): MetricSubRow[] | undefined {
+  const stations = metric.stations ?? [];
+  if (stations.length < 2) return undefined;
+
+  return stations.map((station) => ({
+    label: station.label || station.station,
+    value: formatHydrologyMetric(station.value),
+    unit: metric.unit ?? undefined,
+  }));
+}
+
 export function dashboardMetricRow(
   key: string,
   metric: DashboardMetric | undefined,
@@ -147,6 +171,7 @@ export function dashboardMetricRow(
       sourceType: 'unavailable',
       hasData: false,
       uploadTarget,
+      subRows: metric ? metricSubRows(metric) : undefined,
     };
   }
 
@@ -158,6 +183,7 @@ export function dashboardMetricRow(
     sourceType: override ? 'api' : dashboardSourceType[metric.source],
     hasData: true,
     uploadTarget,
+    subRows: metricSubRows(metric),
   };
 }
 

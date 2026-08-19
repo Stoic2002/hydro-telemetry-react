@@ -128,3 +128,43 @@ describe('telemetering presentation', () => {
   });
 });
 
+describe('sub-parameter per stasiun', () => {
+  const rainfall: DashboardMetric = {
+    label: 'Curah hujan',
+    value: 12.4,
+    unit: 'mm',
+    time: '2026-08-10T08:00:00Z',
+    source: 'measured',
+    stations: [
+      { station: 'SKW', label: 'Pos Sokawera', value: 15.2, time: null },
+      { station: 'WND', label: 'Pos Wanadadi', value: 9.6, time: null },
+    ],
+  };
+
+  it('memunculkan tiap stasiun sebagai sub-baris dengan satuan induknya', () => {
+    const [row] = dashboardMetricRows({ rainfall }, false);
+
+    expect(row.value).toBe('12,4');
+    expect(row.subRows).toEqual([
+      { label: 'Pos Sokawera', value: '15,2', unit: 'mm' },
+      { label: 'Pos Wanadadi', value: '9,6', unit: 'mm' },
+    ]);
+  });
+
+  it('tidak membuat sub-baris untuk parameter berstasiun tunggal', () => {
+    const [row] = dashboardMetricRows(
+      { rainfall: { ...rainfall, stations: [rainfall.stations![0]] } },
+      false,
+    );
+
+    expect(row.subRows).toBeUndefined();
+  });
+
+  it('tetap merinci stasiun walau nilai induknya belum tersedia', () => {
+    const [row] = dashboardMetricRows({ rainfall: { ...rainfall, value: null } }, false);
+
+    expect(row.value).toBe('N/A');
+    expect(row.sourceType).toBe('unavailable');
+    expect(row.subRows).toHaveLength(2);
+  });
+});

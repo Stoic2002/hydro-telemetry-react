@@ -2,8 +2,75 @@ import { useState, type RefObject } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { HYDROLOGY_ZONE_PRESENTATION, type HydrologyZone } from '../../../features/plta/dam-imagery';
 import SourceMarker from '../../../components/atoms/SourceMarker';
-import type { MetricSection } from './presentation';
+import type { MetricRow, MetricSection } from './presentation';
 import type { DailyTelemetryUploadTarget } from '../../../features/telemetry-upload/model';
+
+function MetricRowItem({
+  row,
+  onUpload,
+}: {
+  row: MetricRow;
+  onUpload?: (target: DailyTelemetryUploadTarget) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const subRows = row.subRows ?? [];
+  const hasSubRows = subRows.length > 0;
+
+  return (
+    <div className="py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-[12.5px] text-text-secondary">{row.label}</span>
+          <SourceMarker type={row.sourceType} />
+          {hasSubRows && (
+            <button
+              type="button"
+              onClick={() => setIsOpen((current) => !current)}
+              aria-expanded={isOpen}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 text-[10.5px] font-medium text-text-muted transition-colors hover:text-text-primary"
+            >
+              {subRows.length} stasiun
+              <ChevronDown
+                size={11}
+                className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+          )}
+          {row.uploadTarget && onUpload && (
+            <button
+              type="button"
+              onClick={() => onUpload(row.uploadTarget!)}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-[10.5px] font-semibold text-brand-primary-strong transition-colors hover:text-cyan-800"
+            >
+              {row.hasData ? 'Edit data' : 'Input data'}
+            </button>
+          )}
+        </div>
+        <span className="shrink-0 whitespace-nowrap text-right font-mono text-[13px] font-medium text-text-primary">
+          {row.value}
+          {row.unit && <span className="ml-1 text-[11px] font-normal text-text-muted">{row.unit}</span>}
+        </span>
+      </div>
+
+      {hasSubRows && isOpen && (
+        <div className="mt-1.5 border-l border-border-subtle pl-2.5">
+          {subRows.map((subRow) => (
+            <div
+              key={subRow.label}
+              className="flex items-center justify-between gap-3 py-1"
+            >
+              <span className="truncate text-[11.5px] text-text-muted">{subRow.label}</span>
+              <span className="shrink-0 whitespace-nowrap text-right font-mono text-xs tabular-nums text-text-secondary">
+                {subRow.value}
+                {subRow.unit && <span className="ml-1 text-[10.5px] text-text-placeholder">{subRow.unit}</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface HydrologyMetricCardProps {
   cardRef?: RefObject<HTMLElement | null>;
@@ -72,25 +139,11 @@ export function HydrologyMetricCard({
           )}
           <div className={`divide-y ${presentation.dividerClassName} px-4`}>
             {section.rows.map((row) => (
-              <div key={row.label} className="flex items-center justify-between gap-3 py-2">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate text-[12.5px] text-text-secondary">{row.label}</span>
-                  <SourceMarker type={row.sourceType} />
-                  {row.uploadTarget && onUpload && (
-                    <button
-                      type="button"
-                      onClick={() => onUpload(row.uploadTarget!)}
-                      className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-[10.5px] font-semibold text-brand-primary-strong transition-colors hover:text-cyan-800"
-                    >
-                      {row.hasData ? 'Edit data' : 'Input data'}
-                    </button>
-                  )}
-                </div>
-                <span className="shrink-0 whitespace-nowrap text-right font-mono text-[13px] font-medium text-text-primary">
-                  {row.value}
-                  {row.unit && <span className="ml-1 text-[11px] font-normal text-text-muted">{row.unit}</span>}
-                </span>
-              </div>
+              <MetricRowItem
+                key={row.label}
+                row={row}
+                onUpload={onUpload}
+              />
             ))}
           </div>
         </section>
