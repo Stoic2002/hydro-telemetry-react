@@ -24,4 +24,6 @@ export interface TrendSeries {
   station: string | null;
   resolution: string;
   points: TrendPoint[];
+  /** Pembacaan yang nilainya di luar batas wajar dan tidak ikut ditampilkan. */
+  discardedPoints: number;
 }

@@ -232,6 +232,14 @@ export default function Forecasting() {
         </section>
       ) : (
         <>
+          {(actualQuery.data?.discardedPoints ?? 0) > 0 && (
+            <Banner tone="warning" title="Sebagian pembacaan aktual tidak wajar">
+              {actualQuery.data?.discardedPoints} pembacaan bernilai jauh di luar batas wajar
+              dan tidak ikut digambar. Garis prediksi dan pembacaan lain tetap ditampilkan
+              apa adanya.
+            </Banner>
+          )}
+
           {series?.accuracy && !series.accuracy.isPresentable && (
             <Banner tone="warning" title="Akurasi model belum layak jadi acuan tunggal">
               Gunakan bersama data aktual dan pertimbangan operator.

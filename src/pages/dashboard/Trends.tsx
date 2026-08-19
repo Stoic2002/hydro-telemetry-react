@@ -4,7 +4,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Minus,
-  RefreshCw,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -25,6 +24,8 @@ import Skeleton from '../../components/atoms/Skeleton';
 import PlantSwitcher from '../../features/plta/components/PlantSwitcher';
 import PageHeader from '../../components/ui/PageHeader';
 import EmptyState from '../../components/ui/EmptyState';
+import ErrorState from '../../components/ui/ErrorState';
+import Banner from '../../components/ui/Banner';
 import { chartValueDomain } from '../../shared/utils/chart';
 import {
   useActivePLTA,
@@ -243,6 +244,13 @@ function TrendCard({
           </div>
         </div>
 
+        {(series?.discardedPoints ?? 0) > 0 && (
+          <Banner tone="warning" title="Sebagian pembacaan tidak wajar" className="mt-4">
+            {series?.discardedPoints} pembacaan bernilai jauh di luar batas wajar dan tidak
+            ikut digambar. Statistik di bawah dihitung tanpa pembacaan tersebut.
+          </Banner>
+        )}
+
         {isLoading ? (
           <div role="status" aria-label="Memuat grafik tren" className="mt-5">
             <div className="grid grid-cols-2 border-y border-surface-overlay lg:grid-cols-4">
@@ -257,16 +265,12 @@ function TrendCard({
             <span className="sr-only">Memuat grafik tren...</span>
           </div>
         ) : isError ? (
-          <div className="mt-5 flex h-[390px] flex-col items-center justify-center gap-3 border-y border-red-100 bg-red-50/40 text-center text-xs text-red-600">
-            <span>Data tren belum dapat dimuat.</span>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="inline-flex cursor-pointer items-center gap-1 font-semibold hover:text-red-700"
-            >
-              <RefreshCw size={13} /> Coba lagi
-            </button>
-          </div>
+          <ErrorState
+            title="Data tren belum bisa dimuat"
+            description="Sambungan ke server terputus sebentar."
+            onRetry={onRetry}
+            className="mt-5 h-[390px] justify-center"
+          />
         ) : points.length === 0 ? (
           <div className="mt-5 flex h-[390px] items-center justify-center border-y border-surface-overlay bg-slate-50/40 text-xs text-slate-400">
             Belum ada titik data pada periode ini.

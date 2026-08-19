@@ -7,18 +7,34 @@ const parseResponse = createApiResponseParser(
   'Respons server tidak sesuai kontrak data tren',
 );
 
+/**
+ * Batas kewajaran numerik, bukan batas domain. Tidak ada besaran di dashboard ini
+ * — m³/s, m, mm, MWh, % — yang secara fisik menyentuh satu triliun. Nilai sebesar
+ * itu selalu berarti perhitungan di sisi server yang meledak (mis. pembagian
+ * dengan angka mendekati nol), dan satu titik semacam itu cukup untuk membuat
+ * seluruh sumbu Y tidak terbaca.
+ */
+const IMPLAUSIBLE_VALUE_THRESHOLD = 1e12;
+
+export function isPlausibleReading(value: number): boolean {
+  return Number.isFinite(value) && Math.abs(value) < IMPLAUSIBLE_VALUE_THRESHOLD;
+}
+
 function mapSeries(series: ApiTrendSeries): TrendSeries {
+  const plausiblePoints = series.points.filter((point) => isPlausibleReading(point.value));
+
   return {
     pltaId: series.plta_id,
     parameter: series.parameter,
     station: series.station,
     resolution: series.resolution,
-    points: series.points.map((point) => ({
+    points: plausiblePoints.map((point) => ({
       time: point.time,
       value: point.value,
       quality: point.quality,
       pureQuality: point.quality_murni,
     })),
+    discardedPoints: series.points.length - plausiblePoints.length,
   };
 }
 
