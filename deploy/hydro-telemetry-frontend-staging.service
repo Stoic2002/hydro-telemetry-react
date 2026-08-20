@@ -1,9 +1,9 @@
 # Staging — menyajikan dist-staging/ pada port 4174.
 #
 # Pemasangan:
-#   sudo cp deploy/telemetering-frontend-staging.service /etc/systemd/system/
+#   sudo cp deploy/hydro-telemetry-frontend-staging.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now telemetering-frontend-staging
+#   sudo systemctl enable --now hydro-telemetry-frontend-staging
 
 [Unit]
 Description=Hydro Telemetry React Frontend (staging)

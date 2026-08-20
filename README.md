@@ -179,15 +179,15 @@ Berkas konfigurasinya ada di [`deploy/`](./deploy).
 
 | Environment | Service | Port |
 | --- | --- | --- |
-| Production | `telemetering-frontend` | 4173 |
-| Staging | `telemetering-frontend-staging` | 4174 |
+| Production | `hydro-telemetry-frontend` | 4173 |
+| Staging | `hydro-telemetry-frontend-staging` | 4174 |
 
 ```bash
-sudo cp deploy/telemetering-frontend.service deploy/telemetering-frontend-staging.service /etc/systemd/system/ && sudo systemctl daemon-reload
+sudo cp deploy/hydro-telemetry-frontend.service deploy/hydro-telemetry-frontend-staging.service /etc/systemd/system/ && sudo systemctl daemon-reload
 ```
 
 ```bash
-sudo systemctl enable --now telemetering-frontend telemetering-frontend-staging
+sudo systemctl enable --now hydro-telemetry-frontend hydro-telemetry-frontend-staging
 ```
 
 Server preview Vite sudah menangani fallback SPA, jadi refresh browser pada
@@ -215,35 +215,99 @@ pada 8080):
 sudo cp deploy/nginx.conf /etc/nginx/sites-available/telemetering && sudo ln -sf /etc/nginx/sites-available/telemetering /etc/nginx/sites-enabled/telemetering && sudo nginx -t && sudo systemctl reload nginx
 ```
 
-#### Rilis
+### Runbook rilis
 
-Rilis ke staging:
-
-```bash
-cd /var/www/frontend-telemetering/hydro-telemetry-react && git pull && bun install --frozen-lockfile && bun run build:staging
-```
-
-Rilis ke production, setelah staging diverifikasi:
+Rilis di server dijalankan lewat satu skrip. Selalu lewat staging lebih dulu:
+production tetap menyajikan build lama sebagai jaring pengaman sampai staging
+terbukti benar.
 
 ```bash
-cd /var/www/frontend-telemetering/hydro-telemetry-react && git pull && bun install --frozen-lockfile && bun run build
+./deploy/deploy.sh staging
 ```
-
-Setelah build staging selesai, muat ulang service-nya:
 
 ```bash
-sudo systemctl restart telemetering-frontend-staging
+./deploy/deploy.sh production
 ```
 
-Dan untuk production:
+Skrip itu menarik perubahan, memasang dependency, membangun, memuat ulang
+service, lalu memeriksa portnya merespons. Ia berhenti dengan pesan jelas bila
+file env belum ada — tanpa pemeriksaan itu build tidak error, melainkan diam-diam
+menunjuk backend yang salah. Untuk production ia juga meminta konfirmasi dan
+memperingatkan bila revisi yang sama belum pernah dirilis ke staging.
+
+| Opsi | Kegunaan |
+| --- | --- |
+| `--yes` | Lewati konfirmasi production, untuk pemakaian non-interaktif |
+| `--skip-pull` | Bangun ulang kode yang sudah ada, tanpa `git pull` |
+| `--ref <sha>` | Rilis revisi tertentu; inilah cara rollback |
+
+Rollback production ke revisi sebelumnya:
 
 ```bash
-sudo systemctl restart telemetering-frontend
+./deploy/deploy.sh production --ref <sha> --yes
 ```
 
-Restart diperlukan karena `vite preview` membaca daftar file saat start. Bila
-nanti pindah ke nginx, langkah ini tidak perlu lagi — nginx membaca langsung
-dari disk.
+Perintah `git log --oneline -5` menampilkan pilihan sha-nya. Kembali ke versi
+terbaru cukup dengan `git checkout main` lalu jalankan skrip tanpa `--ref`.
+
+#### Langkah manualnya
+
+Bila perlu dikerjakan tanpa skrip:
+
+**1. Di laptop — pastikan lolos quality gate, lalu push**
+
+```bash
+bun run check && git add -A && git commit -m "<ringkasan perubahan>" && git push origin main
+```
+
+**2. Di server — tarik perubahan**
+
+```bash
+cd /var/www/frontend-telemetering/hydro-telemetry-react && git pull && bun install --frozen-lockfile
+```
+
+Sampai titik ini production belum tersentuh sama sekali.
+
+**3. Rilis ke staging, lalu periksa**
+
+```bash
+bun run build:staging && sudo systemctl restart hydro-telemetry-frontend-staging
+```
+
+Buka `http://<host-server>:4174` dan **login** — itu request pertama ke backend,
+dan satu-satunya cara membuktikan aplikasinya benar-benar hidup. Respons `200`
+dari server statis tidak membuktikan apa pun. Lanjutkan ke Overview, Telemetering,
+Tren & Grafik, dan Laporan.
+
+**4. Rilis ke production, hanya bila langkah 3 bersih**
+
+```bash
+bun run build && sudo systemctl restart hydro-telemetry-frontend
+```
+
+**Rollback bila production bermasalah**
+
+```bash
+git log --oneline -5
+```
+
+```bash
+git checkout <sha-sebelumnya> && bun run build && sudo systemctl restart hydro-telemetry-frontend
+```
+
+Kembali ke versi terbaru dengan `git checkout main`.
+
+#### Kapan ada langkah tambahan
+
+| Perubahan | Langkah tambahan |
+| --- | --- |
+| Menambah variabel `VITE_*` baru | Tambahkan ke `.env.production` dan `.env.staging` di server sebelum build; keduanya di luar Git |
+| Mengubah berkas di `deploy/` | Salin ulang ke `/etc/systemd/system/` lalu `sudo systemctl daemon-reload` |
+| Alamat backend berganti | Ubah `VITE_API_BASE_URL` di file env terkait, lalu build ulang — nilainya ikut ter-bundle |
+| Tidak ada perubahan dependency | `bun install` boleh dilewati, tapi menjalankannya tidak merugikan |
+
+`restart` diperlukan karena `vite preview` membaca daftar file saat start. Bila
+nanti pindah ke nginx, langkah itu hilang — nginx membaca langsung dari disk.
 
 Bila staging perlu mengikuti branch yang berbeda dari production, gandakan
 checkout-nya (`hydro-telemetry-react-staging`) dan arahkan `root` server block

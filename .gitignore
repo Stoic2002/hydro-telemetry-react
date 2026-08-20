@@ -19,6 +19,9 @@ outputs/
 .env.staging
 .env.production
 
+# Catatan revisi yang sedang dirilis, dibuat deploy/deploy.sh
+.deploy-state/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

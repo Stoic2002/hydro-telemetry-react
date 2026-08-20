@@ -1,9 +1,9 @@
 # Production — menyajikan dist/ pada port 4173.
 #
 # Pemasangan:
-#   sudo cp deploy/telemetering-frontend.service /etc/systemd/system/
+#   sudo cp deploy/hydro-telemetry-frontend.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now telemetering-frontend
+#   sudo systemctl enable --now hydro-telemetry-frontend
 
 [Unit]
 Description=Hydro Telemetry React Frontend (production)

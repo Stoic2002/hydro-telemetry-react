@@ -46,7 +46,7 @@ function RouteFallback() {
   return <AppShellSkeleton />;
 }
 
-function ProtectedRoute({ children }: { children: ReactNode }) {
+export function ProtectedRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   if (!isAuthenticated) {
@@ -56,7 +56,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return children;
 }
 
-function GuestOnlyRoute({ children }: { children: ReactNode }) {
+export function GuestOnlyRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   if (isAuthenticated) {
@@ -66,7 +66,7 @@ function GuestOnlyRoute({ children }: { children: ReactNode }) {
   return children;
 }
 
-function AdminOnlyRoute({ children }: { children: ReactNode }) {
+export function AdminOnlyRoute({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
 
   if (!canManageUsers(user)) {
@@ -76,7 +76,7 @@ function AdminOnlyRoute({ children }: { children: ReactNode }) {
   return children;
 }
 
-function DataToolsRoute({ children }: { children: ReactNode }) {
+export function DataToolsRoute({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
 
   if (!canAccessDataTools(user)) {
