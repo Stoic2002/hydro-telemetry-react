@@ -27,20 +27,7 @@ const useMapLayersQueryMock = vi.mocked(useMapLayersQuery);
 const useRainRadarFrameQueryMock = vi.mocked(useRainRadarFrameQuery);
 const usePlantCatalogQueryMock = vi.mocked(usePlantCatalogQuery);
 
-/** Persegi sederhana yang menutupi Jawa Tengah, cukup untuk proyeksi peta. */
-const CENTRAL_JAVA_SQUARE = [[
-  [108.5, -5.5], [112.0, -5.5], [112.0, -8.5], [108.5, -8.5], [108.5, -5.5],
-]];
-
 const MAP_LAYERS = {
-  province: {
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: { Propinsi: 'JAWA TENGAH' },
-      geometry: { type: 'Polygon', coordinates: CENTRAL_JAVA_SQUARE },
-    }],
-  },
   regencies: { type: 'FeatureCollection', features: [] },
   rivers: { type: 'FeatureCollection', features: [] },
 };

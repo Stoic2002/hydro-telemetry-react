@@ -2,7 +2,6 @@ import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, useMapContext } from 'react-simple-maps';
 import { CloudRain } from 'lucide-react';
 import type {
-  Feature,
   FeatureCollection,
   Geometry,
   GeoJsonProperties,
@@ -61,11 +60,37 @@ const CITY_LABEL_OFFSETS: Record<string, { x: number; y: number }> = {
   'Kota Tegal': { x: -14, y: -13 },
 };
 
-function CentralJavaClip({ geography }: { geography: Feature<Geometry, GeoJsonProperties> }) {
+/**
+ * Bentuk wilayah Jawa Tengah, diturunkan dari data kabupaten.
+ *
+ * Sebelumnya bentuk ini diambil dari berkas provinsi terpisah yang 42x lebih
+ * kasar dan tidak memuat Karimunjawa, sehingga garis luarnya tidak berimpit
+ * dengan batas kabupaten dan clip untuk sungai maupun radar ikut meleset.
+ * Menurunkannya dari satu sumber membuat keduanya berimpit sempurna.
+ */
+const CentralJavaShape = memo(function CentralJavaShape({
+  geography,
+  fill,
+  outline,
+}: {
+  geography: FeatureCollection<Geometry, GeoJsonProperties>;
+  fill?: string;
+  outline?: string;
+}) {
   const { path } = useMapContext();
+  const d = path(geography) ?? undefined;
 
-  return <path d={path(geography) ?? undefined} />;
-}
+  if (!outline) return <path d={d} fill={fill} />;
+
+  // Goresan digambar lebih dulu untuk seluruh batas, lalu ditimpa isian.
+  // Batas antar kabupaten tertutup isian, menyisakan garis terluar saja.
+  return (
+    <g pointerEvents="none">
+      <path d={d} fill="none" stroke={outline} strokeWidth={3} strokeLinejoin="round" />
+      <path d={d} fill={fill} />
+    </g>
+  );
+});
 
 const RiverLayer = memo(function RiverLayer({
   geography,
@@ -341,19 +366,6 @@ export default function JavaMap({
     ...currentProjection,
     scale: (currentProjection.scale ?? DEFAULT_PROJECTION.scale) * viewportScale,
   };
-  const centralJavaProvince = mapLayers.province.features.find((feature) => {
-    const provinceName = feature.properties?.Propinsi || feature.properties?.NAME_1 || '';
-    return provinceName === 'JAWA TENGAH';
-  });
-
-  if (!centralJavaProvince) {
-    return (
-      <div className="flex min-h-[420px] items-center justify-center text-center text-sm font-medium text-red-600">
-        Batas wilayah Jawa Tengah tidak ditemukan pada data peta.
-      </div>
-    );
-  }
-
   return (
     <div
       ref={mapContainerRef}
@@ -368,37 +380,15 @@ export default function JavaMap({
       >
         <defs>
           <clipPath id={clipPathId}>
-            <CentralJavaClip geography={centralJavaProvince} />
+            <CentralJavaShape geography={mapLayers.regencies} />
           </clipPath>
         </defs>
 
-        <Geographies geography={mapLayers.province}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
-              const provinceName = geo.properties?.Propinsi || geo.properties?.NAME_1 || '';
-              const isJawaTengah = provinceName === 'JAWA TENGAH';
-              
-              if (!isJawaTengah) return null;
-
-              return (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill={showPrecipitation && isPrecipitationVisible ? '#f1f5f9' : '#f8fafc'}
-                  stroke="#94a3b8"
-                  strokeWidth={1.5}
-                  pointerEvents="none"
-                  tabIndex={-1}
-                  style={{
-                    default: { outline: 'none' },
-                    hover: { outline: 'none' },
-                    pressed: { outline: 'none' },
-                  }}
-                />
-              );
-            })
-          }
-        </Geographies>
+        <CentralJavaShape
+          geography={mapLayers.regencies}
+          fill={showPrecipitation && isPrecipitationVisible ? '#f1f5f9' : '#f8fafc'}
+          outline="#94a3b8"
+        />
 
         {showPrecipitation && isPrecipitationVisible && radarStatus === 'ready' && radarFrame && (
           <RainRadarLayer framePath={radarFrame.path} clipPathId={clipPathId} />

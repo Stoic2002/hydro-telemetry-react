@@ -37,10 +37,6 @@ const useMapLayersQueryMock = vi.mocked(useMapLayersQuery);
 const useRainRadarFrameQueryMock = vi.mocked(useRainRadarFrameQuery);
 const usePlantCatalogQueryMock = vi.mocked(usePlantCatalogQuery);
 
-const SQUARE = [[
-  [108.5, -5.5], [112.0, -5.5], [112.0, -8.5], [108.5, -8.5], [108.5, -5.5],
-]];
-
 function regency(name: string, offset: number) {
   return {
     type: 'Feature',
@@ -56,14 +52,6 @@ function regency(name: string, offset: number) {
 }
 
 const MAP_LAYERS = {
-  province: {
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: { Propinsi: 'JAWA TENGAH' },
-      geometry: { type: 'Polygon', coordinates: SQUARE },
-    }],
-  },
   regencies: {
     type: 'FeatureCollection',
     features: [regency('Banjarnegara', 0), regency('Wonosobo', 0.5), regency('Kebumen', 1)],

@@ -25,7 +25,6 @@ import type { RainViewerFrame } from './radar-tiles';
  * dan menghemat ratusan kilobyte pada halaman Overview.
  */
 const MAP_LAYER_URLS = {
-  province: '/indonesia-provinces.json',
   regencies: '/central-java-regencies.json',
   rivers: '/central-java-rivers.json',
 } as const;
@@ -47,7 +46,6 @@ export interface RiverProperties {
 }
 
 export interface MapLayers {
-  province: FeatureCollection<Geometry, GeoJsonProperties>;
   regencies: FeatureCollection<Geometry, GeoJsonProperties>;
   rivers: FeatureCollection<LineString, RiverProperties>;
 }
@@ -72,13 +70,12 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
 }
 
 async function fetchMapLayers(signal: AbortSignal): Promise<MapLayers> {
-  const [province, regencies, rivers] = await Promise.all([
-    fetchJson<MapLayers['province']>(MAP_LAYER_URLS.province, signal),
+  const [regencies, rivers] = await Promise.all([
     fetchJson<MapLayers['regencies']>(MAP_LAYER_URLS.regencies, signal),
     fetchJson<MapLayers['rivers']>(MAP_LAYER_URLS.rivers, signal),
   ]);
 
-  return { province, regencies, rivers };
+  return { regencies, rivers };
 }
 
 export function useMapLayersQuery() {
