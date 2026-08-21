@@ -26,6 +26,7 @@ import {
 import { canAccessDataTools, canManageUsers } from '../features/auth/permissions';
 import { useAuthStore } from '../store/auth-store';
 import AppShellSkeleton from '../components/skeletons/AppShellSkeleton';
+import DashboardShellSkeleton from '../components/skeletons/DashboardShellSkeleton';
 import DashboardPageSkeleton from '../components/skeletons/DashboardPageSkeleton';
 import { getDashboardSkeletonVariant } from '../components/skeletons/dashboardSkeletonVariant';
 import { Building2, RefreshCw } from 'lucide-react';
@@ -43,7 +44,11 @@ const AccountSettings = lazy(() => import('../pages/dashboard/AccountSettings'))
 const ResourceCatalog = lazy(() => import('../pages/dashboard/ResourceCatalog'));
 
 function RouteFallback() {
-  return <AppShellSkeleton />;
+  // Path sudah diketahui sejak awal, jadi shimmer pertama bisa langsung
+  // berbentuk shell dashboard alih-alih kerangka generik tanpa sidebar.
+  const isDashboard = window.location.pathname.startsWith('/dashboard');
+
+  return isDashboard ? <DashboardShellSkeleton /> : <AppShellSkeleton />;
 }
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {

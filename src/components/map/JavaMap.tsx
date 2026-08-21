@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, useMapContext } from 'react-simple-maps';
 import { CloudRain } from 'lucide-react';
 import type {
@@ -67,7 +67,7 @@ function CentralJavaClip({ geography }: { geography: Feature<Geometry, GeoJsonPr
   return <path d={path(geography) ?? undefined} />;
 }
 
-function RiverLayer({
+const RiverLayer = memo(function RiverLayer({
   geography,
   clipPathId,
 }: {
@@ -75,18 +75,22 @@ function RiverLayer({
   clipPathId: string;
 }) {
   const { path } = useMapContext();
-  const tributaries: FeatureCollection<LineString, RiverProperties> = {
-    type: 'FeatureCollection',
-    features: geography.features.filter((feature) => feature.properties.strahlerOrder === 4),
-  };
-  const secondaryRivers: FeatureCollection<LineString, RiverProperties> = {
-    type: 'FeatureCollection',
-    features: geography.features.filter((feature) => feature.properties.strahlerOrder === 5),
-  };
-  const primaryRivers: FeatureCollection<LineString, RiverProperties> = {
-    type: 'FeatureCollection',
-    features: geography.features.filter((feature) => feature.properties.strahlerOrder >= 6),
-  };
+  // Pengelompokan 555 fitur sungai hanya bergantung pada datanya, bukan pada
+  // ukuran peta maupun marker yang sedang disorot.
+  const { tributaries, secondaryRivers, primaryRivers } = useMemo(() => {
+    const byOrder = (predicate: (order: number) => boolean) => ({
+      type: 'FeatureCollection' as const,
+      features: geography.features.filter(
+        (feature) => predicate(feature.properties.strahlerOrder),
+      ),
+    });
+
+    return {
+      tributaries: byOrder((order) => order === 4),
+      secondaryRivers: byOrder((order) => order === 5),
+      primaryRivers: byOrder((order) => order >= 6),
+    };
+  }, [geography]);
 
   return (
     <g
@@ -119,9 +123,9 @@ function RiverLayer({
       />
     </g>
   );
-}
+});
 
-function RegencyLabelLayer({
+const RegencyLabelLayer = memo(function RegencyLabelLayer({
   geography,
   mapWidth,
 }: {
@@ -131,15 +135,24 @@ function RegencyLabelLayer({
   const { projection } = useMapContext();
   const responsiveFactor = mapWidth < 480 ? 0.62 : mapWidth < 768 ? 0.78 : 1;
   const fontSize = mapWidth < 480 ? 5.8 : mapWidth < 768 ? 7 : 8.5;
+  // Centroid dihitung dari 6.069 titik dan tidak bergantung pada ukuran peta,
+  // jadi cukup sekali per kumpulan data.
+  const labels = useMemo(() => (
+    geography.features.flatMap((feature) => {
+      const name = String(
+        feature.properties?.namobj || feature.properties?.wadmkk || '',
+      ).trim();
+      if (!name) return [];
+
+      const coordinate = getLabelCoordinate(feature.geometry);
+      return coordinate ? [{ name, coordinate }] : [];
+    })
+  ), [geography]);
 
   return (
     <g aria-label="Nama kabupaten dan kota di Jawa Tengah" pointerEvents="none">
-      {geography.features.map((feature, index) => {
-        const name = String(feature.properties?.namobj || feature.properties?.wadmkk || '').trim();
-        if (!name) return null;
-
-        const labelCoordinate = getLabelCoordinate(feature.geometry);
-        const centroid = labelCoordinate ? projection(labelCoordinate) : null;
+      {labels.map(({ name, coordinate }, index) => {
+        const centroid = projection(coordinate);
         if (!centroid || !Number.isFinite(centroid[0]) || !Number.isFinite(centroid[1])) return null;
         const [centroidX, centroidY] = centroid;
 
@@ -191,9 +204,9 @@ function RegencyLabelLayer({
       })}
     </g>
   );
-}
+});
 
-function RainRadarLayer({
+const RainRadarLayer = memo(function RainRadarLayer({
   framePath,
   clipPathId,
 }: {
@@ -239,7 +252,7 @@ function RainRadarLayer({
       })}
     </g>
   );
-}
+});
 
 export default function JavaMap({
   onPLTAClick,
@@ -250,6 +263,8 @@ export default function JavaMap({
   const plantsQuery = usePlantCatalogQuery(!customMarkers);
   const pltaList = plantsQuery.data ?? [];
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  /** Dipisahkan dari hover agar cincin fokus hanya tampil untuk keyboard. */
+  const [focusedId, setFocusedId] = useState<string | null>(null);
   const mapLayersQuery = useMapLayersQuery();
   const mapLayers = mapLayersQuery.data ?? null;
   const [mapSize, setMapSize] = useState<{ width: number; height: number }>(MAP_VIEWBOX);
@@ -373,6 +388,7 @@ export default function JavaMap({
                   stroke="#94a3b8"
                   strokeWidth={1.5}
                   pointerEvents="none"
+                  tabIndex={-1}
                   style={{
                     default: { outline: 'none' },
                     hover: { outline: 'none' },
@@ -400,6 +416,7 @@ export default function JavaMap({
                 strokeWidth={0.42}
                 vectorEffect="non-scaling-stroke"
                 pointerEvents="none"
+                tabIndex={-1}
                 style={{
                   default: { outline: 'none' },
                   hover: { outline: 'none' },
@@ -419,8 +436,12 @@ export default function JavaMap({
           if (plta.longitude === null || plta.latitude === null) return null;
 
           const coord: [number, number] = [plta.longitude, plta.latitude];
-          const isHovered = hoveredId === plta.id;
+          // Fokus keyboard memunculkan sorotan yang sama seperti hover, supaya
+          // kartu detail di samping peta ikut terbuka saat ditelusuri dengan Tab.
+          const isHighlighted = hoveredId === plta.id;
+          const isFocused = focusedId === plta.id;
           const statusColor = plta.isActive ? '#0891b2' : '#94a3b8';
+          const plantName = getPlantDisplayName(plta);
 
           return (
             <Marker
@@ -430,25 +451,54 @@ export default function JavaMap({
               onMouseEnter={() => setHoveredId(plta.id)}
               onMouseLeave={() => setHoveredId(null)}
             >
-              <g className="cursor-pointer transition-all duration-300">
-                <circle 
-                  r={isHovered ? 20 : 12} 
-                  fill={statusColor} 
-                  fillOpacity={isHovered ? 0.2 : 0.1} 
-                  className={isHovered ? '' : 'animate-pulse'}
+              <g
+                role="button"
+                tabIndex={0}
+                aria-label={`Buka telemetering PLTA ${plantName}`}
+                onFocus={() => {
+                  setFocusedId(plta.id);
+                  setHoveredId(plta.id);
+                }}
+                onBlur={() => {
+                  setFocusedId(null);
+                  setHoveredId(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  // Spasi menggulirkan halaman bila tidak dicegat.
+                  event.preventDefault();
+                  onPLTAClick(plta.id);
+                }}
+                className="cursor-pointer outline-none transition-all duration-300"
+              >
+                {isFocused && (
+                  <circle
+                    r={26}
+                    fill="none"
+                    stroke="var(--color-brand-primary-strong)"
+                    strokeWidth={2}
+                    strokeDasharray="4 3"
+                  />
+                )}
+                <circle
+                  r={isHighlighted ? 20 : 12}
+                  fill={statusColor}
+                  fillOpacity={isHighlighted ? 0.2 : 0.1}
+                  className={isHighlighted ? '' : 'animate-pulse'}
                 />
-                <circle 
-                  r={isHovered ? 7 : 5} 
-                  fill={statusColor} 
-                  stroke="#ffffff" 
+                <circle
+                  r={isHighlighted ? 7 : 5}
+                  fill={statusColor}
+                  stroke="#ffffff"
                   strokeWidth={2}
                 />
                 <text
                   textAnchor="middle"
-                  y={isHovered ? -26 : -16}
-                  className={`text-[10px] font-bold ${isHovered ? 'fill-text-primary opacity-100' : 'fill-text-muted opacity-70'} transition-all font-sans`}
+                  y={isHighlighted ? -26 : -16}
+                  aria-hidden="true"
+                  className={`text-[10px] font-bold ${isHighlighted ? 'fill-text-primary opacity-100' : 'fill-text-muted opacity-70'} transition-all font-sans`}
                 >
-                  {getPlantDisplayName(plta)}
+                  {plantName}
                 </text>
               </g>
             </Marker>

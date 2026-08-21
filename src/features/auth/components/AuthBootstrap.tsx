@@ -2,6 +2,8 @@ import { useEffect, type PropsWithChildren } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/auth-store';
 import AppShellSkeleton from '../../../components/skeletons/AppShellSkeleton';
+import DashboardShellSkeleton from '../../../components/skeletons/DashboardShellSkeleton';
+import { getAuthTokens } from '../../../api/http/auth-session';
 
 export default function AuthBootstrap({ children }: PropsWithChildren) {
   const initialize = useAuthStore((state) => state.initialize);
@@ -20,7 +22,12 @@ export default function AuthBootstrap({ children }: PropsWithChildren) {
   }, [isAuthenticated, isInitialized, queryClient]);
 
   if (!isInitialized) {
-    return <AppShellSkeleton />;
+    // Adanya token berarti tujuannya dashboard, bukan halaman login. Menebak
+    // dari sini membuat shimmer pertama sudah berbentuk benar sejak awal.
+    const isRestoringSession = Boolean(getAuthTokens())
+      && window.location.pathname.startsWith('/dashboard');
+
+    return isRestoringSession ? <DashboardShellSkeleton /> : <AppShellSkeleton />;
   }
 
   return children;
