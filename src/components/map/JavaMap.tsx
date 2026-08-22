@@ -13,6 +13,7 @@ import { formatTimeWIB } from '../../shared/lib/date';
 import MapSkeleton from '../skeletons/MapSkeleton';
 import Badge from '../atoms/Badge';
 import { getLabelCoordinate } from './label-placement';
+import { horizontalShiftForWidth, pixelShiftToLongitude } from './projection';
 import {
   CENTRAL_JAVA_RADAR_TILES,
   RAIN_VIEWER_TILE_HOST,
@@ -362,9 +363,18 @@ export default function JavaMap({
     mapSize.width / MAP_VIEWBOX.width,
     mapSize.height / MAP_VIEWBOX.height,
   );
+  const effectiveScale = (currentProjection.scale ?? DEFAULT_PROJECTION.scale) * viewportScale;
+  const [baseLongitude, baseLatitude] = currentProjection.center ?? DEFAULT_PROJECTION.center;
+  // Digeser ke kiri sejauh setengah lebar panel melayang di kanan, supaya
+  // daratan tidak tertutup sakelar radar dan legenda.
+  const centerLongitude = baseLongitude + pixelShiftToLongitude(
+    horizontalShiftForWidth(mapSize.width),
+    effectiveScale,
+  );
   const responsiveProjection = {
     ...currentProjection,
-    scale: (currentProjection.scale ?? DEFAULT_PROJECTION.scale) * viewportScale,
+    center: [centerLongitude, baseLatitude] as [number, number],
+    scale: effectiveScale,
   };
   return (
     <div
